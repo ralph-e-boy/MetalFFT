@@ -1,0 +1,8 @@
+metric	coding_like_n62	non_coding_n96	effect
+gc_mean	28.1	23.8	d=+1.13
+gc_median	28.6	23.1	
+orf_mean	379	86	
+orf_median	129	66	
+orf_gt200	21	7	
+orf_gt500	10	0	
+size_mean	2631	984	

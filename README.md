@@ -1,15 +1,26 @@
 # AppleSiliconFFT
 
-High-performance FFT and kernel-fused SAR processing for Apple Silicon GPUs using Metal compute shaders.
+High-performance FFT on Apple Silicon GPUs (Metal compute shaders) with applications to SAR radar imaging and genomic spectral analysis.
 
-**Paper 1**: 138.45 GFLOPS FFT at N=4096 -- 29% faster than Apple's vDSP/Accelerate.
-**Paper 2**: Kernel-fused SAR Range Doppler in 370 ms -- 22x speedup over unfused baseline.
+## Papers
 
-Companion code for:
+### Paper 1: FFT Performance
 
 > M. A. Bergach, "Beating vDSP: A 138 GFLOPS Radix-8 Stockham FFT on Apple Silicon via Two-Tier Register-Threadgroup Memory Decomposition," 2026.
 
+**138.45 GFLOPS** at N=4096 — 29% faster than Apple's vDSP/Accelerate.
+
+### Paper 2: SAR Radar Imaging
+
 > M. A. Bergach, "From 8 Seconds to 370 ms: Kernel-Fused SAR Imaging on Apple Silicon via Single-Dispatch FFT Pipelines," 2026.
+
+Kernel-fused SAR Range-Doppler algorithm, **22x speedup** over unfused baseline.
+
+### Paper 3: Quaternion Spectral DNA Analysis
+
+> M. A. Bergach, "Quaternion Spectral Fingerprinting of DNA: GPU-Accelerated Multi-Channel Fourier Analysis for Alignment-Free Genomics," 2026. [bioRxiv preprint]
+
+Establishes the **4-channel cross-spectral coherence framework** for DNA analysis. Quaternion FFT decomposition, 18-genome validation across all three domains of life, alignment-free spectral variant detection. Discovers that the DNA helical repeat is invisible to power spectra but detected by cross-spectral matrix anisotropy.
 
 ## Key Results (Apple M1)
 
@@ -169,6 +180,17 @@ benchmarks/
     utils.swift                -- Benchmark utilities
   Makefile                     -- Build with: make && make run
 ```
+
+## Building
+
+```bash
+cd code/
+swift build --product MultilevelAnalysis
+swift build --product NullModelTest
+swift build --product PfGenomeWide
+```
+
+
 
 ## Citation
 
