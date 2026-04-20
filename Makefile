@@ -3,7 +3,9 @@ DOCS_DIR = docs
 .PHONY: docs docs-llm test clean-docs
 
 docs:
-	swift package generate-documentation \
+	@mkdir -p $(DOCS_DIR)
+	swift package --allow-writing-to-directory $(DOCS_DIR) \
+		generate-documentation \
 		--target MetalFFT \
 		--output-path $(DOCS_DIR)/MetalFFT.doccarchive
 

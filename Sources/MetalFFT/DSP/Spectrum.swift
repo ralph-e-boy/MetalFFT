@@ -42,6 +42,26 @@ public enum Spectrum {
         vDSP_vsmul(magnitudes, 1, &inv, &magnitudes, 1, vDSP_Length(magnitudes.count))
     }
 
+    // MARK: - Decibels
+
+    /// Converts squared magnitudes to dB (10·log₁₀). `floorDB` clamps -∞ from zero-valued bins.
+    public static func toDecibels(_ magnitudes: [Float], floorDB: Float = -120) -> [Float] {
+        var out = [Float](repeating: 0, count: magnitudes.count)
+        var b: Float = 1.0
+        vDSP_vdbcon(magnitudes, 1, &b, &out, 1, vDSP_Length(magnitudes.count), 1)
+        var lo = floorDB
+        var hi = Float.greatestFiniteMagnitude
+        vDSP_vclip(out, 1, &lo, &hi, &out, 1, vDSP_Length(out.count))
+        return out
+    }
+
+    // MARK: - Phase
+
+    /// Returns the instantaneous phase (atan2) of each complex bin, in radians (–π to π).
+    public static func phase(_ complex: [SIMD2<Float>]) -> [Float] {
+        complex.map { atan2($0.y, $0.x) }
+    }
+
     // MARK: - Noise Detection
 
     /// Configuration for `isNoise`.

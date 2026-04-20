@@ -73,6 +73,34 @@ public enum PeakDetection {
         return (index: bestIndex, rawFrequency: Double(bestIndex) * freqPerBin)
     }
 
+    // MARK: - Multi-Peak Detection
+
+    /// Returns up to `count` local maxima, each separated by at least `minSpacing` bins.
+    /// Results are sorted by bin index ascending.
+    public static func topPeaks(
+        in magnitudes: [Float],
+        count: Int,
+        minSpacing: Int = 1
+    ) -> [(index: Int, value: Float)] {
+        var scratch = magnitudes
+        var peaks: [(index: Int, value: Float)] = []
+        peaks.reserveCapacity(count)
+
+        while peaks.count < count {
+            var maxVal: Float = 0
+            var maxIdx: vDSP_Length = 0
+            vDSP_maxvi(scratch, 1, &maxVal, &maxIdx, vDSP_Length(scratch.count))
+            guard maxVal > 0 else { break }
+            let idx = Int(maxIdx)
+            peaks.append((index: idx, value: maxVal))
+            let lo = max(0, idx - minSpacing)
+            let hi = min(scratch.count - 1, idx + minSpacing)
+            for i in lo...hi { scratch[i] = 0 }
+        }
+
+        return peaks.sorted { $0.index < $1.index }
+    }
+
     // MARK: - Parabolic Interpolation
 
     /// Sub-bin frequency via 3-point parabolic interpolation around `peakIndex`.

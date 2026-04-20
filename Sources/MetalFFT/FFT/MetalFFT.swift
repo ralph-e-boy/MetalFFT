@@ -51,6 +51,20 @@ public final class MetalFFT {
         }
     }
 
+    // MARK: - Inverse FFT
+
+    /// Inverse FFT via the conjugate trick: IFFT(X) = conj(FFT(conj(X))) / N.
+    public func inverse(_ input: [SIMD2<Float>]) throws -> [SIMD2<Float>] {
+        guard input.count == size else {
+            throw FFTError.invalidInputSize(expected: size, got: input.count)
+        }
+        let conjInput = input.map { SIMD2<Float>($0.x, -$0.y) }
+        var out = [SIMD2<Float>](repeating: .zero, count: size)
+        try conjInput.withUnsafeBufferPointer { try forward(input: $0, output: &out) }
+        let invN = Float(1) / Float(size)
+        return out.map { SIMD2<Float>($0.x * invN, -$0.y * invN) }
+    }
+
     // MARK: - Forward FFT
 
     public func forward(_ input: [SIMD2<Float>]) throws -> [SIMD2<Float>] {
