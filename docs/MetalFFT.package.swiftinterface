@@ -1,0 +1,81 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 6.2.4 effective-5.10 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)
+// swift-module-flags: -target arm64-apple-macosx13.0 -enable-objc-interop -enable-library-evolution -swift-version 5 -Onone -module-name MetalFFT -package-name applesiliconfft
+// swift-module-flags-ignorable: -no-verify-emitted-module-interface -formal-cxx-interoperability-mode=off -interface-compiler-version 6.2.4
+import Accelerate
+import Foundation
+import Metal
+import Swift
+import _Concurrency
+import _StringProcessing
+import _SwiftConcurrencyShims
+public enum PeakDetection {
+  #if compiler(>=5.3) && $NonescapableTypes
+  public static func peak(in magnitudes: [Swift.Float], range: Swift.Range<Swift.Int>? = nil) -> (index: Swift.Int, value: Swift.Float)?
+  #endif
+  #if compiler(>=5.3) && $NonescapableTypes
+  public static func fundamentalFrequency(magnitudes: [Swift.Float], sampleRate: Swift.Double, fftSize: Swift.Int, minFreq: Swift.Double, maxFreq: Swift.Double, magnitudeThreshold: Swift.Float = 0.12) -> (index: Swift.Int, rawFrequency: Swift.Double)?
+  #endif
+  public static func parabolicInterpolation(magnitudes: [Swift.Float], peakIndex: Swift.Int, sampleRate: Swift.Double, fftSize: Swift.Int) -> Swift.Double
+}
+public enum Spectrum {
+  public static func rms(_ samples: Swift.UnsafeBufferPointer<Swift.Float>) -> Swift.Float
+  public static func rms(_ samples: [Swift.Float]) -> Swift.Float
+  #if compiler(>=5.3) && $NonescapableTypes
+  public static func magnitudes(_ complex: [Swift.SIMD2<Swift.Float>], count: Swift.Int? = nil) -> [Swift.Float]
+  #endif
+  public static func normalize(_ magnitudes: inout [Swift.Float])
+  public struct NoiseConfig {
+    public var lowFreqDominanceThreshold: Swift.Float
+    public var flatnessVarianceThreshold: Swift.Float
+    public var peakToMeanRatioThreshold: Swift.Float
+    public init(lowFreqDominanceThreshold: Swift.Float = 0.8, flatnessVarianceThreshold: Swift.Float = 0.005, peakToMeanRatioThreshold: Swift.Float = 2.5)
+    public static let `default`: MetalFFT.Spectrum.NoiseConfig
+  }
+  public static func isNoise(_ magnitudes: [Swift.Float], sampleRate: Swift.Double, fftSize: Swift.Int, config: MetalFFT.Spectrum.NoiseConfig = .default) -> Swift.Bool
+}
+public enum Window {
+  public static func hann(_ size: Swift.Int) -> [Swift.Float]
+  public static func hamming(_ size: Swift.Int) -> [Swift.Float]
+  public static func apply(_ window: [Swift.Float], input: Swift.UnsafeBufferPointer<Swift.Float>, output: inout [Swift.Float])
+  public static func apply(_ window: [Swift.Float], to samples: [Swift.Float]) -> [Swift.Float]
+}
+final public class MetalFFT {
+  final public let size: Swift.Int
+  public init(size: Swift.Int) throws
+  final public func forward(_ input: [Swift.SIMD2<Swift.Float>]) throws -> [Swift.SIMD2<Swift.Float>]
+  final public func forward(input: Swift.UnsafeBufferPointer<Swift.SIMD2<Swift.Float>>, output: inout [Swift.SIMD2<Swift.Float>]) throws
+  final public func forward(batch input: [[Swift.SIMD2<Swift.Float>]]) throws -> [[Swift.SIMD2<Swift.Float>]]
+  @objc deinit
+}
+public enum FFTError : Swift.Error, Swift.CustomStringConvertible {
+  case noMetalDevice
+  case noCommandQueue
+  case libraryBuildFailed(any Swift.Error)
+  case kernelNotFound(Swift.String)
+  case commandBufferFailed(Swift.String)
+  case invalidInputSize(expected: Swift.Int, got: Swift.Int)
+  case batchInputSize(expected: Swift.Int, got: Swift.Int, batchIndex: Swift.Int)
+  case unsupportedFFTSize(Swift.Int)
+  case bufferAllocationFailed
+  public var description: Swift.String {
+    get
+  }
+}
+final public class FrequencyTracker {
+  final public let smoothingWindow: Swift.Int
+  public init(smoothingWindow: Swift.Int = 5)
+  @discardableResult
+  final public func track(_ rawFrequency: Swift.Double) -> Swift.Double
+  final public func reset()
+  @objc deinit
+}
+public enum Pitch {
+  public static let noteNames: [Swift.String]
+  #if compiler(>=5.3) && $NonescapableTypes
+  public static func note(frequency: Swift.Double, referenceA: Swift.Double = 440.0) -> (name: Swift.String, octave: Swift.Int)?
+  #endif
+  #if compiler(>=5.3) && $NonescapableTypes
+  public static func centsDeviation(frequency: Swift.Double, referenceA: Swift.Double = 440.0) -> Swift.Double?
+  #endif
+}
