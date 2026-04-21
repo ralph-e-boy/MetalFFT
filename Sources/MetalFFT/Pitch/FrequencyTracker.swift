@@ -12,7 +12,7 @@ public final class FrequencyTracker {
     /// - Parameter smoothingWindow: Number of frames to average. Clamped to [1, 64].
     public init(smoothingWindow: Int = 5) {
         self.smoothingWindow = max(1, min(smoothingWindow, 64))
-        self.ring = [Float](repeating: 0, count: self.smoothingWindow)
+        ring = [Float](repeating: 0, count: self.smoothingWindow)
     }
 
     /// Pushes `frequency` into the ring buffer and returns the smoothed mean.

@@ -1,9 +1,8 @@
-import XCTest
 import Accelerate
 @testable import MetalFFT
+import XCTest
 
 final class FusedConvolverTests: XCTestCase {
-
     private let fftSize = 4096
 
     // MARK: - FP32 correctness
@@ -25,10 +24,10 @@ final class FusedConvolverTests: XCTestCase {
         let kernel = randomReal(n: 128)
         let signal = randomReal(n: fftSize * 2)
 
-        let fused   = try FusedConvolver(kernel: kernel, fftSize: fftSize)
+        let fused = try FusedConvolver(kernel: kernel, fftSize: fftSize)
         let unfused = try Convolver(kernel: kernel, fftSize: fftSize)
 
-        let fusedOut   = try fused.apply(to: signal)
+        let fusedOut = try fused.apply(to: signal)
         let unfusedOut = try unfused.apply(to: signal)
 
         let l2 = l2RelativeError(fusedOut, unfusedOut)
@@ -66,7 +65,7 @@ final class FusedConvolverTests: XCTestCase {
     // MARK: - Helpers
 
     private func randomReal(n: Int) -> [Float] {
-        (0..<n).map { _ in Float.random(in: -1...1) }
+        (0 ..< n).map { _ in Float.random(in: -1 ... 1) }
     }
 
     private func l2RelativeError(_ a: [Float], _ b: [Float]) -> Float {

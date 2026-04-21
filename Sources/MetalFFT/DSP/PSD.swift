@@ -4,7 +4,6 @@ import Accelerate
 
 /// Power spectral density and coherence estimation.
 public enum PSD {
-
     /// Power spectral density via Welch's method (averaged overlapping periodograms).
     ///
     /// Returns PSD in linear units (squared magnitude per Hz). Take `Spectrum.toDecibels`
@@ -40,7 +39,9 @@ public enum PSD {
             signal.withUnsafeBufferPointer { ptr in
                 vDSP_vmul(ptr.baseAddress! + pos, 1, w, 1, &windowed, 1, vDSP_Length(fftSize))
             }
-            for i in 0..<fftSize { complex[i] = SIMD2<Float>(windowed[i], 0) }
+            for i in 0 ..< fftSize {
+                complex[i] = SIMD2<Float>(windowed[i], 0)
+            }
             try complex.withUnsafeBufferPointer { try fft.forward(input: $0, output: &spectrum) }
 
             let mags = Spectrum.magnitudes(spectrum)
@@ -80,8 +81,8 @@ public enum PSD {
         let w = windowType.coefficients(fftSize)
         let fft = try MetalFFT(size: fftSize)
 
-        var sxx  = [Float](repeating: 0, count: fftSize)
-        var syy  = [Float](repeating: 0, count: fftSize)
+        var sxx = [Float](repeating: 0, count: fftSize)
+        var syy = [Float](repeating: 0, count: fftSize)
         var sxyR = [Float](repeating: 0, count: fftSize)
         var sxyI = [Float](repeating: 0, count: fftSize)
 
@@ -103,7 +104,9 @@ public enum PSD {
             b.withUnsafeBufferPointer { ptr in
                 vDSP_vmul(ptr.baseAddress! + pos, 1, w, 1, &wB, 1, vDSP_Length(fftSize))
             }
-            for i in 0..<fftSize { cA[i] = SIMD2<Float>(wA[i], 0); cB[i] = SIMD2<Float>(wB[i], 0) }
+            for i in 0 ..< fftSize {
+                cA[i] = SIMD2<Float>(wA[i], 0); cB[i] = SIMD2<Float>(wB[i], 0)
+            }
             try cA.withUnsafeBufferPointer { try fft.forward(input: $0, output: &oA) }
             try cB.withUnsafeBufferPointer { try fft.forward(input: $0, output: &oB) }
 
@@ -112,9 +115,9 @@ public enum PSD {
             let magsB = Spectrum.magnitudes(oB)
             vDSP_vadd(sxx, 1, magsA, 1, &sxx, 1, vDSP_Length(fftSize))
             vDSP_vadd(syy, 1, magsB, 1, &syy, 1, vDSP_Length(fftSize))
-            for i in 0..<fftSize {
-                sxyR[i] += oA[i].x * oB[i].x + oA[i].y * oB[i].y   // Re(A·conj(B))
-                sxyI[i] += oA[i].y * oB[i].x - oA[i].x * oB[i].y   // Im(A·conj(B))
+            for i in 0 ..< fftSize {
+                sxyR[i] += oA[i].x * oB[i].x + oA[i].y * oB[i].y // Re(A·conj(B))
+                sxyI[i] += oA[i].y * oB[i].x - oA[i].x * oB[i].y // Im(A·conj(B))
             }
 
             frameCount += 1
@@ -123,7 +126,7 @@ public enum PSD {
 
         guard frameCount > 0 else { return [Float](repeating: 0, count: fftSize) }
 
-        return (0..<fftSize).map { i in
+        return (0 ..< fftSize).map { i in
             let denom = sxx[i] * syy[i]
             guard denom > 0 else { return 0 }
             return (sxyR[i] * sxyR[i] + sxyI[i] * sxyI[i]) / denom

@@ -4,9 +4,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 // =============================================================================
 
-import Metal
 import Accelerate
 import Foundation
+import Metal
 
 // ============================================================================
 // Batched FFT 4096 — Metal Host with simdgroup_matrix MMA Kernel
@@ -29,7 +29,7 @@ func vdspFFT4096(input: [SIMD2<Float>]) -> [SIMD2<Float>] {
 
     var realIn = [Float](repeating: 0, count: n)
     var imagIn = [Float](repeating: 0, count: n)
-    for i in 0..<n {
+    for i in 0 ..< n {
         realIn[i] = input[i].x
         imagIn[i] = input[i].y
     }
@@ -50,7 +50,7 @@ func vdspFFT4096(input: [SIMD2<Float>]) -> [SIMD2<Float>] {
     }
 
     var result = [SIMD2<Float>](repeating: .zero, count: n)
-    for i in 0..<n {
+    for i in 0 ..< n {
         result[i] = SIMD2<Float>(realOut[i], imagOut[i])
     }
     return result
@@ -73,7 +73,7 @@ struct BatchedFFTHost {
         guard let queue = device.makeCommandQueue() else {
             fatalError("Could not create command queue")
         }
-        self.commandQueue = queue
+        commandQueue = queue
 
         // Find the Metal shader
         let execPath = CommandLine.arguments[0]
@@ -83,7 +83,7 @@ struct BatchedFFTHost {
             (execDir as NSString).appendingPathComponent("../Sources/fft_4096_batched.metal"),
             (execDir as NSString).appendingPathComponent("../../Sources/fft_4096_batched.metal"),
             (execDir as NSString).appendingPathComponent("../../src/metal/fft_4096_batched.metal"),
-            (execDir as NSString).appendingPathComponent("../../../fft_4096_batched.metal"),
+            (execDir as NSString).appendingPathComponent("../../../fft_4096_batched.metal")
         ]
         var foundPath: String? = nil
         for path in searchPaths {
@@ -116,38 +116,38 @@ struct BatchedFFTHost {
         guard let function = library.makeFunction(name: "fft_4096_batched") else {
             fatalError("Could not find kernel function 'fft_4096_batched'")
         }
-        self.pipeline = try device.makeComputePipelineState(function: function)
+        pipeline = try device.makeComputePipelineState(function: function)
         print("  Pipeline state created successfully")
 
         // Precompute DFT_8 matrices
         let sqrt2_2: Float = 0.70710678118654752
         let f8Real: [Float] = [
-             1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,
-             1.0,  sqrt2_2,  0.0, -sqrt2_2, -1.0, -sqrt2_2,  0.0,  sqrt2_2,
-             1.0,  0.0, -1.0,  0.0,  1.0,  0.0, -1.0,  0.0,
-             1.0, -sqrt2_2,  0.0,  sqrt2_2, -1.0,  sqrt2_2,  0.0, -sqrt2_2,
-             1.0, -1.0,  1.0, -1.0,  1.0, -1.0,  1.0, -1.0,
-             1.0, -sqrt2_2,  0.0,  sqrt2_2, -1.0,  sqrt2_2,  0.0, -sqrt2_2,
-             1.0,  0.0, -1.0,  0.0,  1.0,  0.0, -1.0,  0.0,
-             1.0,  sqrt2_2,  0.0, -sqrt2_2, -1.0, -sqrt2_2,  0.0,  sqrt2_2,
+            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+            1.0, sqrt2_2, 0.0, -sqrt2_2, -1.0, -sqrt2_2, 0.0, sqrt2_2,
+            1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0, 0.0,
+            1.0, -sqrt2_2, 0.0, sqrt2_2, -1.0, sqrt2_2, 0.0, -sqrt2_2,
+            1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0,
+            1.0, -sqrt2_2, 0.0, sqrt2_2, -1.0, sqrt2_2, 0.0, -sqrt2_2,
+            1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0, 0.0,
+            1.0, sqrt2_2, 0.0, -sqrt2_2, -1.0, -sqrt2_2, 0.0, sqrt2_2
         ]
         let f8Imag: [Float] = [
-             0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-             0.0, -sqrt2_2, -1.0, -sqrt2_2,  0.0,  sqrt2_2,  1.0,  sqrt2_2,
-             0.0, -1.0,  0.0,  1.0,  0.0, -1.0,  0.0,  1.0,
-             0.0, -sqrt2_2,  1.0, -sqrt2_2,  0.0,  sqrt2_2, -1.0,  sqrt2_2,
-             0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-             0.0,  sqrt2_2, -1.0,  sqrt2_2,  0.0, -sqrt2_2,  1.0, -sqrt2_2,
-             0.0,  1.0,  0.0, -1.0,  0.0,  1.0,  0.0, -1.0,
-             0.0,  sqrt2_2,  1.0,  sqrt2_2,  0.0, -sqrt2_2, -1.0, -sqrt2_2,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            0.0, -sqrt2_2, -1.0, -sqrt2_2, 0.0, sqrt2_2, 1.0, sqrt2_2,
+            0.0, -1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 1.0,
+            0.0, -sqrt2_2, 1.0, -sqrt2_2, 0.0, sqrt2_2, -1.0, sqrt2_2,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            0.0, sqrt2_2, -1.0, sqrt2_2, 0.0, -sqrt2_2, 1.0, -sqrt2_2,
+            0.0, 1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0,
+            0.0, sqrt2_2, 1.0, sqrt2_2, 0.0, -sqrt2_2, -1.0, -sqrt2_2
         ]
 
-        self.dftRealBuffer = device.makeBuffer(
+        dftRealBuffer = device.makeBuffer(
             bytes: f8Real,
             length: 64 * MemoryLayout<Float>.stride,
             options: .storageModeShared
         )!
-        self.dftImagBuffer = device.makeBuffer(
+        dftImagBuffer = device.makeBuffer(
             bytes: f8Imag,
             length: 64 * MemoryLayout<Float>.stride,
             options: .storageModeShared
@@ -214,7 +214,7 @@ struct BatchedFFTHost {
         let threadgroups = MTLSizeMake(batchSize, 1, 1)
 
         // Warmup
-        for _ in 0..<warmup {
+        for _ in 0 ..< warmup {
             let cb = commandQueue.makeCommandBuffer()!
             let enc = cb.makeComputeCommandEncoder()!
             enc.setComputePipelineState(pipeline)
@@ -230,7 +230,7 @@ struct BatchedFFTHost {
 
         // Timed runs
         var times: [Double] = []
-        for _ in 0..<repeats {
+        for _ in 0 ..< repeats {
             let cb = commandQueue.makeCommandBuffer()!
             let enc = cb.makeComputeCommandEncoder()!
             enc.setComputePipelineState(pipeline)
@@ -262,7 +262,7 @@ func validate(metal: [SIMD2<Float>], reference: [SIMD2<Float>], label: String) -
     var l2ErrorSq: Float = 0
     var l2RefSq: Float = 0
 
-    for i in 0..<n {
+    for i in 0 ..< n {
         let diff = metal[i] - reference[i]
         let absErr = sqrt(diff.x * diff.x + diff.y * diff.y)
         let refMag = sqrt(reference[i].x * reference[i].x + reference[i].y * reference[i].y)
@@ -318,16 +318,16 @@ struct BatchedFFTMain {
 
         let valBatch = 8
         var valInput = [SIMD2<Float>](repeating: .zero, count: n * valBatch)
-        for i in 0..<valInput.count {
-            valInput[i] = SIMD2<Float>(Float.random(in: -1...1), Float.random(in: -1...1))
+        for i in 0 ..< valInput.count {
+            valInput[i] = SIMD2<Float>(Float.random(in: -1 ... 1), Float.random(in: -1 ... 1))
         }
 
         let metalResult = host.runFFT(input: valInput, batchSize: valBatch)
 
-        for b in 0..<valBatch {
-            let slice = Array(valInput[b * n..<(b + 1) * n])
+        for b in 0 ..< valBatch {
+            let slice = Array(valInput[b * n ..< (b + 1) * n])
             let ref = vdspFFT4096(input: slice)
-            let metalSlice = Array(metalResult[b * n..<(b + 1) * n])
+            let metalSlice = Array(metalResult[b * n ..< (b + 1) * n])
             let (pass, _) = validate(metal: metalSlice, reference: ref, label: "batch[\(b)]")
             allPassed = allPassed && pass
         }
@@ -357,7 +357,7 @@ struct BatchedFFTMain {
         // Sinusoidal
         var sinSignal = [SIMD2<Float>](repeating: .zero, count: n)
         let invN = 2.0 * Float.pi / Float(n)
-        for k in 0..<n {
+        for k in 0 ..< n {
             let t = Float(k) * invN
             sinSignal[k] = SIMD2<Float>(cos(100.0 * t) + 0.5 * cos(200.0 * t), 0.0)
         }
@@ -380,8 +380,8 @@ struct BatchedFFTMain {
 
         for batchSize in [8, 16, 64, 256] {
             var batchInput = [SIMD2<Float>](repeating: .zero, count: n * batchSize)
-            for i in 0..<batchInput.count {
-                batchInput[i] = SIMD2<Float>(Float.random(in: -1...1), Float.random(in: -1...1))
+            for i in 0 ..< batchInput.count {
+                batchInput[i] = SIMD2<Float>(Float.random(in: -1 ... 1), Float.random(in: -1 ... 1))
             }
 
             let totalUs = host.timeFFT(input: batchInput, batchSize: batchSize)

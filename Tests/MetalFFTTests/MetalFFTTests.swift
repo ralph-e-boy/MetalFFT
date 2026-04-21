@@ -1,9 +1,8 @@
-import XCTest
 import Accelerate
 @testable import MetalFFT
+import XCTest
 
 final class MetalFFTTests: XCTestCase {
-
     // MARK: - FFT Accuracy
 
     static let allSizes = [64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384]
@@ -27,8 +26,8 @@ final class MetalFFTTests: XCTestCase {
         for n in Self.allSizes {
             let signal = randomSignal(n: n)
             let fft = try MetalFFT(size: n)
-            let metalOut  = try fft.forward(signal)
-            let vdspOut   = vdspFFT(input: signal, n: n)
+            let metalOut = try fft.forward(signal)
+            let vdspOut = vdspFFT(input: signal, n: n)
             let l2 = l2RelativeError(metalOut, vdspOut)
             XCTAssertLessThan(l2, Self.l2Threshold,
                               "L2 error \(l2) exceeds threshold for N=\(n)")
@@ -37,15 +36,15 @@ final class MetalFFTTests: XCTestCase {
 
     func testSingleSinusoidPeakBin() throws {
         let n = 1024
-        let freq = 100.0  // bin index 100
-        let signal: [SIMD2<Float>] = (0..<n).map { k in
+        let freq = 100.0 // bin index 100
+        let signal: [SIMD2<Float>] = (0 ..< n).map { k in
             let phase = 2.0 * Double.pi * freq * Double(k) / Double(n)
             return SIMD2<Float>(Float(cos(phase)), 0)
         }
         let fft = try MetalFFT(size: n)
         let out = try fft.forward(signal)
         let mags = Spectrum.magnitudes(out, count: n / 2)
-        let peakBin = mags.indices.max(by: { mags[$0] < mags[$1] })!
+        let peakBin = try XCTUnwrap(mags.indices.max(by: { mags[$0] < mags[$1] }))
         XCTAssertEqual(peakBin, 100, "Peak should be at bin 100")
     }
 
@@ -56,8 +55,8 @@ final class MetalFFTTests: XCTestCase {
         let fft = try MetalFFT(size: n)
 
         let batchOut = try fft.forward(batch: [a, b])
-        let singleA  = try fft.forward(a)
-        let singleB  = try fft.forward(b)
+        let singleA = try fft.forward(a)
+        let singleB = try fft.forward(b)
 
         XCTAssertLessThan(l2RelativeError(batchOut[0], singleA), Self.l2Threshold,
                           "Batch[0] diverges from single FFT")
@@ -78,7 +77,9 @@ final class MetalFFTTests: XCTestCase {
         let w = Window.hann(n)
         let ones = [Float](repeating: 1, count: n)
         let out = Window.apply(w, to: ones)
-        for i in 0..<n { XCTAssertEqual(out[i], w[i], accuracy: 1e-6) }
+        for i in 0 ..< n {
+            XCTAssertEqual(out[i], w[i], accuracy: 1e-6)
+        }
     }
 
     // MARK: - Spectrum
@@ -90,10 +91,10 @@ final class MetalFFTTests: XCTestCase {
         XCTAssertEqual(Spectrum.rms(zeros), 0.0, accuracy: 1e-5)
     }
 
-    func testNormalize() {
+    func testNormalize() throws {
         var mags: [Float] = [1, 2, 4, 3]
         Spectrum.normalize(&mags)
-        XCTAssertEqual(mags.max()!, 1.0, accuracy: 1e-6)
+        XCTAssertEqual(try XCTUnwrap(mags.max()), 1.0, accuracy: 1e-6)
     }
 
     // MARK: - PeakDetection
@@ -121,8 +122,8 @@ final class MetalFFTTests: XCTestCase {
         XCTAssertEqual(n?.octave, 4)
     }
 
-    func testCentsDeviationInTune() {
-        let cents = Pitch.centsDeviation(frequency: 440.0)!
+    func testCentsDeviationInTune() throws {
+        let cents = try XCTUnwrap(Pitch.centsDeviation(frequency: 440.0))
         XCTAssertEqual(cents, 0.0, accuracy: 0.01)
     }
 
@@ -155,13 +156,15 @@ final class MetalFFTTests: XCTestCase {
     // MARK: - Helpers
 
     private func randomSignal(n: Int) -> [SIMD2<Float>] {
-        (0..<n).map { _ in
-            SIMD2<Float>(Float.random(in: -1...1), Float.random(in: -1...1))
+        (0 ..< n).map { _ in
+            SIMD2<Float>(Float.random(in: -1 ... 1), Float.random(in: -1 ... 1))
         }
     }
 
     private func vdspFFT(input: [SIMD2<Float>], n: Int) -> [SIMD2<Float>] {
-        var log2n = 0; var v = n; while v > 1 { v >>= 1; log2n += 1 }
+        var log2n = 0; var v = n; while v > 1 {
+            v >>= 1; log2n += 1
+        }
         guard let setup = vDSP_create_fftsetup(vDSP_Length(log2n), FFTRadix(kFFTRadix2)) else {
             fatalError("vDSP_create_fftsetup failed")
         }
@@ -173,7 +176,7 @@ final class MetalFFTTests: XCTestCase {
             imagIn.withUnsafeMutableBufferPointer { iIn in
                 realOut.withUnsafeMutableBufferPointer { rOut in
                     imagOut.withUnsafeMutableBufferPointer { iOut in
-                        var splitIn  = DSPSplitComplex(realp: rIn.baseAddress!, imagp: iIn.baseAddress!)
+                        var splitIn = DSPSplitComplex(realp: rIn.baseAddress!, imagp: iIn.baseAddress!)
                         var splitOut = DSPSplitComplex(realp: rOut.baseAddress!, imagp: iOut.baseAddress!)
                         vDSP_fft_zop(setup, &splitIn, 1, &splitOut, 1,
                                      vDSP_Length(log2n), FFTDirection(kFFTDirection_Forward))
@@ -181,12 +184,12 @@ final class MetalFFTTests: XCTestCase {
                 }
             }
         }
-        return (0..<n).map { SIMD2<Float>(realOut[$0], imagOut[$0]) }
+        return (0 ..< n).map { SIMD2<Float>(realOut[$0], imagOut[$0]) }
     }
 
     private func l2RelativeError(_ a: [SIMD2<Float>], _ b: [SIMD2<Float>]) -> Float {
         var errSq: Float = 0, refSq: Float = 0
-        for i in 0..<a.count {
+        for i in 0 ..< a.count {
             let d = a[i] - b[i]
             errSq += d.x * d.x + d.y * d.y
             refSq += b[i].x * b[i].x + b[i].y * b[i].y

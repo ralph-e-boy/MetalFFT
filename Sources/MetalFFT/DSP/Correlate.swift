@@ -8,18 +8,18 @@ public final class Correlator {
     public let fftSize: Int
 
     private let fft: MetalFFT
-    private var bufA:  [SIMD2<Float>]
-    private var bufB:  [SIMD2<Float>]
-    private var outA:  [SIMD2<Float>]
-    private var outB:  [SIMD2<Float>]
+    private var bufA: [SIMD2<Float>]
+    private var bufB: [SIMD2<Float>]
+    private var outA: [SIMD2<Float>]
+    private var outB: [SIMD2<Float>]
 
     public init(fftSize: Int) throws {
         self.fftSize = fftSize
-        self.fft  = try MetalFFT(size: fftSize)
-        self.bufA = [SIMD2<Float>](repeating: .zero, count: fftSize)
-        self.bufB = [SIMD2<Float>](repeating: .zero, count: fftSize)
-        self.outA = [SIMD2<Float>](repeating: .zero, count: fftSize)
-        self.outB = [SIMD2<Float>](repeating: .zero, count: fftSize)
+        fft = try MetalFFT(size: fftSize)
+        bufA = [SIMD2<Float>](repeating: .zero, count: fftSize)
+        bufB = [SIMD2<Float>](repeating: .zero, count: fftSize)
+        outA = [SIMD2<Float>](repeating: .zero, count: fftSize)
+        outB = [SIMD2<Float>](repeating: .zero, count: fftSize)
     }
 
     /// Circular autocorrelation of `signal` (zero-padded to `fftSize`).
@@ -37,7 +37,7 @@ public final class Correlator {
         try bufB.withUnsafeBufferPointer { try fft.forward(input: $0, output: &outB) }
 
         var product = [SIMD2<Float>](repeating: .zero, count: fftSize)
-        for i in 0..<fftSize {
+        for i in 0 ..< fftSize {
             let ai = outA[i], bi = outB[i]
             // A · conj(B) = (ar+j·ai)(br-j·bi)
             product[i] = SIMD2<Float>(ai.x * bi.x + ai.y * bi.y,
@@ -52,7 +52,11 @@ public final class Correlator {
 
     private func pack(_ samples: [Float], into buf: inout [SIMD2<Float>]) {
         let n = min(samples.count, fftSize)
-        for i in 0..<n { buf[i] = SIMD2<Float>(samples[i], 0) }
-        for i in n..<fftSize { buf[i] = .zero }
+        for i in 0 ..< n {
+            buf[i] = SIMD2<Float>(samples[i], 0)
+        }
+        for i in n ..< fftSize {
+            buf[i] = .zero
+        }
     }
 }

@@ -1,5 +1,5 @@
-import Foundation
 import DNALib
+import Foundation
 
 // ============================================================================
 // Biological Validation: Per-Window Multilevel Features vs Gene Annotations
@@ -18,8 +18,8 @@ import DNALib
 struct GFFFeature {
     let seqid: String
     let featureType: String
-    let start: Int  // 1-based
-    let end: Int    // 1-based, inclusive
+    let start: Int // 1-based
+    let end: Int // 1-based, inclusive
     let strand: Character
 }
 
@@ -59,7 +59,7 @@ func buildCodingMask(sequences: [FASTASequence], cdsFeatures: [GFFFeature]) -> [
         // Extract accession from header (first word)
         let accession = String(seq.header.split(separator: " ").first ?? "")
         seqOffsets[accession] = offset
-        offset += seq.sequence.filter { $0 <= 3 }.count
+        offset += seq.sequence.count(where: { $0 <= 3 })
     }
 
     let totalLen = offset
@@ -68,16 +68,16 @@ func buildCodingMask(sequences: [FASTASequence], cdsFeatures: [GFFFeature]) -> [
     var mapped = 0
     for cds in cdsFeatures {
         guard let seqOffset = seqOffsets[cds.seqid] else { continue }
-        let start = seqOffset + cds.start - 1  // Convert 1-based to 0-based
+        let start = seqOffset + cds.start - 1 // Convert 1-based to 0-based
         let end = seqOffset + cds.end - 1
-        guard start >= 0 && end < totalLen else { continue }
-        for i in start...end {
+        guard start >= 0, end < totalLen else { continue }
+        for i in start ... end {
             mask[i] = true
         }
         mapped += 1
     }
 
-    let codingBases = mask.filter { $0 }.count
+    let codingBases = mask.count(where: { $0 })
     print("  Coding mask: \(mapped) CDS features mapped, \(codingBases) coding bases (\(String(format: "%.1f%%", Double(codingBases) / Double(totalLen) * 100)))")
 
     return mask
@@ -96,7 +96,7 @@ func main() throws {
         "\(execDir)/../data/genomes", "\(execDir)/../../data/genomes",
         "\(execDir)/../../../data/genomes", "\(execDir)/../../../../data/genomes",
         "\(execDir)/../../../../../data/genomes",
-        "\(FileManager.default.currentDirectoryPath)/data/genomes",
+        "\(FileManager.default.currentDirectoryPath)/data/genomes"
     ]
     var genomesDir = ""
     for dir in searchDirs {
@@ -150,17 +150,17 @@ func main() throws {
 
     struct WindowStats {
         var codingFraction: Float
-        var bandCoherence: [[Float]]  // [band][pair]
+        var bandCoherence: [[Float]] // [band][pair]
     }
 
     var windowStats = [WindowStats]()
-    for w in 0..<result.numWindows {
+    for w in 0 ..< result.numWindows {
         let startPos = w * hopSize
         let endPos = min(startPos + N, codingMask.count)
         guard endPos <= codingMask.count else { continue }
 
         var codingCount = 0
-        for i in startPos..<endPos {
+        for i in startPos ..< endPos {
             if codingMask[i] { codingCount += 1 }
         }
         let codingFrac = Float(codingCount) / Float(endPos - startPos)
@@ -205,23 +205,27 @@ func main() throws {
     var tsvLines = ["band\tpair\tmean_coding\tmean_noncoding\tdelta\tcohen_d\tstd_coding\tstd_noncoding"]
 
     for (bIdx, band) in bands.enumerated() {
-        for pIdx in 0..<6 {
+        for pIdx in 0 ..< 6 {
             // Collect values for coding and non-coding
             let codingVals = codingWindows.map { $0.bandCoherence[bIdx][pIdx] }
             let noncodingVals = noncodingWindows.map { $0.bandCoherence[bIdx][pIdx] }
 
-            guard !codingVals.isEmpty && !noncodingVals.isEmpty else { continue }
+            guard !codingVals.isEmpty, !noncodingVals.isEmpty else { continue }
 
             let meanCoding = codingVals.reduce(0, +) / Float(codingVals.count)
             let meanNoncoding = noncodingVals.reduce(0, +) / Float(noncodingVals.count)
 
             var varCoding: Float = 0
-            for v in codingVals { varCoding += (v - meanCoding) * (v - meanCoding) }
+            for v in codingVals {
+                varCoding += (v - meanCoding) * (v - meanCoding)
+            }
             varCoding /= Float(max(codingVals.count - 1, 1))
             let stdCoding = sqrt(varCoding)
 
             var varNoncoding: Float = 0
-            for v in noncodingVals { varNoncoding += (v - meanNoncoding) * (v - meanNoncoding) }
+            for v in noncodingVals {
+                varNoncoding += (v - meanNoncoding) * (v - meanNoncoding)
+            }
             varNoncoding /= Float(max(noncodingVals.count - 1, 1))
             let stdNoncoding = sqrt(varNoncoding)
 
@@ -229,11 +233,10 @@ func main() throws {
             let pooledStd = sqrt((varCoding + varNoncoding) / 2)
             let cohenD = pooledStd > 1e-6 ? delta / pooledStd : 0
 
-            let sig: String
-            if abs(cohenD) > 0.8 { sig = "LARGE ***" }
-            else if abs(cohenD) > 0.5 { sig = "MEDIUM **" }
-            else if abs(cohenD) > 0.2 { sig = "SMALL *" }
-            else { sig = "negligible" }
+            let sig = if abs(cohenD) > 0.8 { "LARGE ***" }
+            else if abs(cohenD) > 0.5 { "MEDIUM **" }
+            else if abs(cohenD) > 0.2 { "SMALL *" }
+            else { "negligible" }
 
             let direction = delta > 0 ? "coding>" : "coding<"
 
@@ -264,7 +267,7 @@ func main() throws {
     reportLines.append("|------|------|-----------|")
 
     for (bIdx, band) in bands.enumerated() {
-        for pIdx in 0..<6 {
+        for pIdx in 0 ..< 6 {
             let xs = windowStats.map { Double($0.codingFraction) }
             let ys = windowStats.map { Double($0.bandCoherence[bIdx][pIdx]) }
 
@@ -273,7 +276,7 @@ func main() throws {
             let meanY = ys.reduce(0, +) / n
 
             var sumXY: Double = 0, sumX2: Double = 0, sumY2: Double = 0
-            for i in 0..<xs.count {
+            for i in 0 ..< xs.count {
                 let dx = xs[i] - meanX
                 let dy = ys[i] - meanY
                 sumXY += dx * dy

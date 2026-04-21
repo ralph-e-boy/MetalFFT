@@ -27,9 +27,9 @@ import Foundation
 ///   - dna: Encoded DNA (0=A, 1=T, 2=G, 3=C). Values >3 are skipped.
 ///   - rng: Random number generator (for reproducibility)
 /// - Returns: Shuffled sequence with identical dinucleotide frequencies
-public func dinucleotideShuffle<R: RandomNumberGenerator>(
+public func dinucleotideShuffle(
     dna: [UInt8],
-    rng: inout R
+    rng: inout some RandomNumberGenerator
 ) -> [UInt8] {
     // Filter to valid bases only
     let seq = dna.filter { $0 <= 3 }
@@ -42,13 +42,13 @@ public func dinucleotideShuffle<R: RandomNumberGenerator>(
     // We need to find a random Euler path starting at seq[0] and ending at seq[n-1]
 
     // Collect edges: for each node, list of successor nodes
-    var edges: [[UInt8]] = [[], [], [], []]  // edges[from] = [to1, to2, ...]
-    for i in 0..<(n - 1) {
+    var edges: [[UInt8]] = [[], [], [], []] // edges[from] = [to1, to2, ...]
+    for i in 0 ..< (n - 1) {
         edges[Int(seq[i])].append(seq[i + 1])
     }
 
     // Shuffle each edge list randomly (this randomizes the Euler path)
-    for i in 0..<4 {
+    for i in 0 ..< 4 {
         edges[i].shuffle(using: &rng)
     }
 
@@ -86,9 +86,9 @@ public func dinucleotideShuffle<R: RandomNumberGenerator>(
         // If Euler path doesn't cover all edges (disconnected graph),
         // fall back to simple shuffle preserving first/last base
         var fallback = seq
-        let mid = Array(fallback[1..<(n-1)])
+        let mid = Array(fallback[1 ..< (n - 1)])
         let shuffled = mid.shuffled(using: &rng)
-        for i in 0..<shuffled.count {
+        for i in 0 ..< shuffled.count {
             fallback[i + 1] = shuffled[i]
         }
         return fallback
@@ -107,9 +107,9 @@ public func dinucleotideShuffle(dna: [UInt8]) -> [UInt8] {
 public func verifyDinucleotidePreservation(_ a: [UInt8], _ b: [UInt8]) -> Bool {
     func dinucCounts(_ seq: [UInt8]) -> [Int] {
         var counts = [Int](repeating: 0, count: 16)
-        for i in 0..<(seq.count - 1) {
-            if seq[i] <= 3 && seq[i+1] <= 3 {
-                counts[Int(seq[i]) * 4 + Int(seq[i+1])] += 1
+        for i in 0 ..< (seq.count - 1) {
+            if seq[i] <= 3, seq[i + 1] <= 3 {
+                counts[Int(seq[i]) * 4 + Int(seq[i + 1])] += 1
             }
         }
         return counts
@@ -122,7 +122,7 @@ public struct SeededRNG: RandomNumberGenerator {
     private var state: UInt64
 
     public init(seed: UInt64) {
-        self.state = seed
+        state = seed
     }
 
     public mutating func next() -> UInt64 {

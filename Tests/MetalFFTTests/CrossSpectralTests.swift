@@ -1,9 +1,8 @@
-import XCTest
 import Accelerate
 @testable import MetalFFT
+import XCTest
 
 final class CrossSpectralTests: XCTestCase {
-
     private let fftSize = 1024
     private let hopSize = 512
 
@@ -41,7 +40,7 @@ final class CrossSpectralTests: XCTestCase {
         let inputs = [[SIMD2<Float>]](repeating: complex, count: channels)
         let out = try multi.forward(inputs)
 
-        for c in 0..<channels {
+        for c in 0 ..< channels {
             let l2 = l2Error(out[c], expected)
             XCTAssertLessThan(l2, 1e-4, "ch\(c) L2=\(l2)")
         }
@@ -57,7 +56,7 @@ final class CrossSpectralTests: XCTestCase {
         let fwd = try mfft.forward(inputs)
         let inv = try mfft.inverse(fwd)
 
-        for c in 0..<channels {
+        for c in 0 ..< channels {
             let l2 = l2Error(inv[c], signal)
             XCTAssertLessThan(l2, 1e-4, "ch\(c) round-trip L2=\(l2)")
         }
@@ -80,8 +79,8 @@ final class CrossSpectralTests: XCTestCase {
         XCTAssertEqual(result.channels, 3)
         XCTAssertEqual(result.pairCount, 3)
 
-        for p in 0..<result.pairCount {
-            for k in 1..<n {   // skip DC/Nyquist where power may be zero
+        for p in 0 ..< result.pairCount {
+            for k in 1 ..< n { // skip DC/Nyquist where power may be zero
                 XCTAssertEqual(result.coherence[p][k], 1.0, accuracy: 1e-4,
                                "pair\(p) bin\(k) coherence")
             }
@@ -144,11 +143,11 @@ final class CrossSpectralTests: XCTestCase {
 
         var sumCross: Float = 0, sumPSD: Float = 0
         vDSP_sve(crossPow, 1, &sumCross, vDSP_Length(n))
-        vDSP_sve(psdPow,   1, &sumPSD,   vDSP_Length(n))
+        vDSP_sve(psdPow, 1, &sumPSD, vDSP_Length(n))
 
         // They may differ by normalization constant (window sum) — just verify both > 0
         XCTAssertGreaterThan(sumCross, 0)
-        XCTAssertGreaterThan(sumPSD,   0)
+        XCTAssertGreaterThan(sumPSD, 0)
     }
 
     func testCoherenceSymmetry() throws {
@@ -156,7 +155,9 @@ final class CrossSpectralTests: XCTestCase {
         let s1 = randomReal(n: n * 4)
         var s2 = randomReal(n: n * 4)
         // Mix s2 with s1 to get partial coherence
-        for i in s2.indices { s2[i] = 0.5 * s2[i] + 0.5 * s1[i] }
+        for i in s2.indices {
+            s2[i] = 0.5 * s2[i] + 0.5 * s1[i]
+        }
 
         let result = try PSD.crossSpectral(
             channels: [s1, s2],
@@ -166,16 +167,16 @@ final class CrossSpectralTests: XCTestCase {
         )
 
         // Coherence in [0, 1]
-        for k in 0..<n {
+        for k in 0 ..< n {
             XCTAssertGreaterThanOrEqual(result.coherence[0][k], 0.0 - 1e-6)
-            XCTAssertLessThanOrEqual(   result.coherence[0][k], 1.0 + 1e-6)
+            XCTAssertLessThanOrEqual(result.coherence[0][k], 1.0 + 1e-6)
         }
     }
 
     // MARK: - Helpers
 
     private func randomReal(n: Int) -> [Float] {
-        (0..<n).map { _ in Float.random(in: -1...1) }
+        (0 ..< n).map { _ in Float.random(in: -1 ... 1) }
     }
 
     private func l2Error(_ a: [SIMD2<Float>], _ b: [SIMD2<Float>]) -> Float {

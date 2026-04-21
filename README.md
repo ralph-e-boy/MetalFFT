@@ -13,7 +13,7 @@ GPU-accelerated FFT for Apple Silicon — a Swift Package built on Metal compute
 Add the package via Swift Package Manager:
 
 ```swift
-.package(url: "https://github.com/ralphseaman/AppleSiliconFFT", from: "1.0.0"),
+.package(url: "https://github.com/ralph-e-boy/MetalFFT", from: "1.0.0"),
 ```
 
 Then add `"MetalFFT"` to your target dependencies.

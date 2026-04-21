@@ -28,8 +28,8 @@ public final class MultiChannelFFT {
     public init(channels: Int, size: Int) throws {
         precondition(channels > 0, "channels must be > 0")
         self.channels = channels
-        self.size     = size
-        self.fft      = try MetalFFT(size: size)
+        self.size = size
+        fft = try MetalFFT(size: size)
     }
 
     /// Forward FFT on all channels in a single GPU dispatch.
@@ -38,7 +38,7 @@ public final class MultiChannelFFT {
     /// - Returns: `channels` complex spectra in the same order as `inputs`.
     public func forward(_ inputs: [[SIMD2<Float>]]) throws -> [[SIMD2<Float>]] {
         precondition(inputs.count == channels,
-            "Expected \(channels) channels, got \(inputs.count)")
+                     "Expected \(channels) channels, got \(inputs.count)")
         return try fft.forward(batch: inputs)
     }
 
@@ -48,7 +48,7 @@ public final class MultiChannelFFT {
     /// - Returns: `channels` time-domain signals.
     public func inverse(_ inputs: [[SIMD2<Float>]]) throws -> [[SIMD2<Float>]] {
         precondition(inputs.count == channels,
-            "Expected \(channels) channels, got \(inputs.count)")
+                     "Expected \(channels) channels, got \(inputs.count)")
         return try inputs.map { try fft.inverse($0) }
     }
 }

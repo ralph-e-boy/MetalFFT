@@ -27,10 +27,10 @@ public final class OnsetDetector {
     ///   - hopSize: Hop between frames. Default 256 (75% overlap at fftSize=1024).
     public init(sampleRate: Double, fftSize: Int = 1024, hopSize: Int = 256) throws {
         self.sampleRate = sampleRate
-        self.fftSize    = fftSize
-        self.hopSize    = hopSize
-        self.stft       = try STFT(fftSize: fftSize, hopSize: hopSize, window: .hann, sampleRate: sampleRate)
-        self.prevMagnitudes = [Float](repeating: 0, count: fftSize)
+        self.fftSize = fftSize
+        self.hopSize = hopSize
+        stft = try STFT(fftSize: fftSize, hopSize: hopSize, window: .hann, sampleRate: sampleRate)
+        prevMagnitudes = [Float](repeating: 0, count: fftSize)
     }
 
     /// Feed the next chunk of samples. Detects onsets and appends to `onsets`.
@@ -83,7 +83,7 @@ public final class OnsetDetector {
     private func spectralFlux(_ current: [Float]) -> Float {
         let n = min(current.count, prevMagnitudes.count)
         var flux: Float = 0
-        for i in 0..<n {
+        for i in 0 ..< n {
             let diff = current[i] - prevMagnitudes[i]
             if diff > 0 { flux += diff }
         }

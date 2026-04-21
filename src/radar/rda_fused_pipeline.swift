@@ -4,8 +4,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 // =============================================================================
 
-import Metal
 import Foundation
+import Metal
 
 // ============================================================================
 // Range Doppler Algorithm (RDA) — Fused Pipeline
@@ -33,13 +33,13 @@ class RDAFusedPipeline {
     let nRange: Int
     let nAzimuth: Int
 
-    // Timing breakdown
+    /// Timing breakdown
     var stepTimes: [(String, Double)] = []
 
     init(params: SARParameters) throws {
         self.params = params
-        self.nRange = params.nRange
-        self.nAzimuth = params.nAzimuth
+        nRange = params.nRange
+        nAzimuth = params.nAzimuth
 
         guard let device = MTLCreateSystemDefaultDevice() else {
             fatalError("No Metal device found")
@@ -48,7 +48,7 @@ class RDAFusedPipeline {
         guard let queue = device.makeCommandQueue() else {
             fatalError("Could not create command queue")
         }
-        self.commandQueue = queue
+        commandQueue = queue
 
         let compileOptions = MTLCompileOptions()
         compileOptions.fastMathEnabled = true
@@ -70,7 +70,7 @@ class RDAFusedPipeline {
         let fftKernelNames = [
             "fft_256_stockham", "fft_512_stockham", "fft_1024_stockham",
             "fft_2048_stockham", "fft_4096_stockham",
-            "fft_64_stockham", "fft_128_stockham",
+            "fft_64_stockham", "fft_128_stockham"
         ]
         for name in fftKernelNames {
             if let function = fftLibrary.makeFunction(name: name) {
@@ -86,7 +86,7 @@ class RDAFusedPipeline {
             "complex_multiply", "complex_multiply_conjugate",
             "transpose_2d", "rcmc_sinc_interp",
             "generate_azimuth_matched_filter",
-            "fftshift_columns", "magnitude_detect",
+            "fftshift_columns", "magnitude_detect"
         ]
         for name in rdaKernelNames {
             if let function = rdaLibrary.makeFunction(name: name) {
@@ -114,7 +114,7 @@ class RDAFusedPipeline {
             (cwd as NSString).appendingPathComponent("src/metal/\(name)"),
             (cwd as NSString).appendingPathComponent("src/radar/\(name)"),
             (cwd as NSString).appendingPathComponent("../metal/\(name)"),
-            (cwd as NSString).appendingPathComponent("../radar/\(name)"),
+            (cwd as NSString).appendingPathComponent("../radar/\(name)")
         ]
         for path in searchPaths {
             if FileManager.default.fileExists(atPath: path) {
@@ -191,11 +191,11 @@ class RDAFusedPipeline {
 
         // Matched filter: H_r(f) = conj(FFT(chirp_ref))
         var matchedFilter = [SIMD2<Float>](repeating: .zero, count: Nr)
-        for i in 0..<Nr {
+        for i in 0 ..< Nr {
             matchedFilter[i] = SIMD2<Float>(chirpFFT[i].x, -chirpFFT[i].y)
         }
         let filterBuffer = device.makeBuffer(bytes: matchedFilter,
-            length: Nr * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
+                                             length: Nr * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
 
         let outputBuffer = device.makeBuffer(length: byteCount, options: .storageModeShared)!
 
@@ -259,7 +259,7 @@ class RDAFusedPipeline {
 
         var rcmcParams: [Float] = [lambda, V, R0, rangePixel, Float(Nr), Float(Na)]
         let paramsBuffer = device.makeBuffer(bytes: &rcmcParams,
-            length: rcmcParams.count * MemoryLayout<Float>.stride, options: .storageModeShared)!
+                                             length: rcmcParams.count * MemoryLayout<Float>.stride, options: .storageModeShared)!
 
         let pipeline = utilityPipelines["rcmc_sinc_interp"]!
         let cb = commandQueue.makeCommandBuffer()!
@@ -309,7 +309,7 @@ class RDAFusedPipeline {
 
         var azParams: [Float] = [lambda, V, R0, prf, Float(Nr), Float(Na), rangePixel]
         let azParamsBuffer = device.makeBuffer(bytes: &azParams,
-            length: azParams.count * MemoryLayout<Float>.stride, options: .storageModeShared)!
+                                               length: azParams.count * MemoryLayout<Float>.stride, options: .storageModeShared)!
 
         let genPipeline = utilityPipelines["generate_azimuth_matched_filter"]!
         let cb1 = commandQueue.makeCommandBuffer()!
@@ -320,7 +320,7 @@ class RDAFusedPipeline {
         let threads1 = min(256, Na)
         let groups1 = (Na * Nr + threads1 - 1) / threads1
         enc1.dispatchThreadgroups(MTLSizeMake(groups1, 1, 1),
-                                   threadsPerThreadgroup: MTLSizeMake(threads1, 1, 1))
+                                  threadsPerThreadgroup: MTLSizeMake(threads1, 1, 1))
         enc1.endEncoding()
         cb1.commit()
         cb1.waitUntilCompleted()
@@ -342,9 +342,9 @@ class RDAFusedPipeline {
         // azimuth line). Data is already in frequency domain, so no forward FFT needed.
         let fusedOut = device.makeBuffer(length: byteCount, options: .storageModeShared)!
 
-        var fusedParams: [UInt32] = [0]  // filterIsSingleRow = 0 (filter is per-row)
+        var fusedParams: [UInt32] = [0] // filterIsSingleRow = 0 (filter is per-row)
         let fusedParamsBuffer = device.makeBuffer(bytes: &fusedParams,
-            length: fusedParams.count * MemoryLayout<UInt32>.stride, options: .storageModeShared)!
+                                                  length: fusedParams.count * MemoryLayout<UInt32>.stride, options: .storageModeShared)!
 
         let pipeline = fusedPipelines["fused_multiply_ifft"]!
         let cb2 = commandQueue.makeCommandBuffer()!
@@ -356,7 +356,7 @@ class RDAFusedPipeline {
         enc2.setBuffer(fusedParamsBuffer, offset: 0, index: 3)
         // Nr rows, each is an azimuth line of length Na
         enc2.dispatchThreadgroups(MTLSizeMake(Nr, 1, 1),
-                                   threadsPerThreadgroup: MTLSizeMake(1024, 1, 1))
+                                  threadsPerThreadgroup: MTLSizeMake(1024, 1, 1))
         enc2.endEncoding()
         cb2.commit()
         cb2.waitUntilCompleted()
@@ -379,12 +379,12 @@ class RDAFusedPipeline {
 
     private func fftConfigForSize(_ n: Int) -> FFTConfig {
         switch n {
-        case 256:  return FFTConfig(kernelName: "fft_256_stockham",  threadsPerGroup: 64)
-        case 512:  return FFTConfig(kernelName: "fft_512_stockham",  threadsPerGroup: 128)
-        case 1024: return FFTConfig(kernelName: "fft_1024_stockham", threadsPerGroup: 256)
-        case 2048: return FFTConfig(kernelName: "fft_2048_stockham", threadsPerGroup: 512)
-        case 4096: return FFTConfig(kernelName: "fft_4096_stockham", threadsPerGroup: 1024)
-        default:   fatalError("Unsupported FFT size for single-pass: \(n)")
+        case 256: FFTConfig(kernelName: "fft_256_stockham", threadsPerGroup: 64)
+        case 512: FFTConfig(kernelName: "fft_512_stockham", threadsPerGroup: 128)
+        case 1024: FFTConfig(kernelName: "fft_1024_stockham", threadsPerGroup: 256)
+        case 2048: FFTConfig(kernelName: "fft_2048_stockham", threadsPerGroup: 512)
+        case 4096: FFTConfig(kernelName: "fft_4096_stockham", threadsPerGroup: 1024)
+        default: fatalError("Unsupported FFT size for single-pass: \(n)")
         }
     }
 
@@ -414,7 +414,7 @@ class RDAFusedPipeline {
 
         var params: [UInt32] = [UInt32(rows), UInt32(cols)]
         let paramsBuffer = device.makeBuffer(bytes: &params,
-            length: params.count * MemoryLayout<UInt32>.stride, options: .storageModeShared)!
+                                             length: params.count * MemoryLayout<UInt32>.stride, options: .storageModeShared)!
 
         let cb = commandQueue.makeCommandBuffer()!
         let enc = cb.makeComputeCommandEncoder()!
@@ -434,9 +434,10 @@ class RDAFusedPipeline {
     func cpuFFT(_ input: [SIMD2<Float>]) -> [SIMD2<Float>] {
         let n = input.count
         let inputBuffer = device.makeBuffer(bytes: input,
-            length: n * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
+                                            length: n * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
         let outputBuffer = device.makeBuffer(
-            length: n * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
+            length: n * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared
+        )!
 
         batchRowFFT(input: inputBuffer, output: outputBuffer, rowSize: n, numRows: 1)
 
@@ -444,7 +445,7 @@ class RDAFusedPipeline {
         return Array(UnsafeBufferPointer(start: ptr, count: n))
     }
 
-    // Print step timing breakdown
+    /// Print step timing breakdown
     func printTimingBreakdown() {
         print("\n  Fused pipeline step breakdown:")
         for (name, time) in stepTimes {

@@ -4,9 +4,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 // =============================================================================
 
-import Metal
 import Accelerate
 import Foundation
+import Metal
 
 // ============================================================================
 // Multi-size FFT Host — Metal Kernel Validation & Benchmarking
@@ -21,19 +21,21 @@ struct FFTSize {
 
     init(_ n: Int, kernel: String, threads: Int) {
         self.n = n
-        self.kernelName = kernel
-        self.threadsPerGroup = threads
-        var v = n; var l = 0; while v > 1 { v >>= 1; l += 1 }
-        self.log2n = l
+        kernelName = kernel
+        threadsPerGroup = threads
+        var v = n; var l = 0; while v > 1 {
+            v >>= 1; l += 1
+        }
+        log2n = l
     }
 }
 
 let singlePassSizes: [FFTSize] = [
-    FFTSize(256,  kernel: "fft_256_stockham",  threads: 64),
-    FFTSize(512,  kernel: "fft_512_stockham",  threads: 128),
+    FFTSize(256, kernel: "fft_256_stockham", threads: 64),
+    FFTSize(512, kernel: "fft_512_stockham", threads: 128),
     FFTSize(1024, kernel: "fft_1024_stockham", threads: 256),
     FFTSize(2048, kernel: "fft_2048_stockham", threads: 512),
-    FFTSize(4096, kernel: "fft_4096_stockham", threads: 1024),
+    FFTSize(4096, kernel: "fft_4096_stockham", threads: 1024)
 ]
 
 struct FourStepConfig {
@@ -57,7 +59,7 @@ let fourStepSizes: [FourStepConfig] = [
     // Step 1: 128 row-FFTs of size 128, Step 3: 128 row-FFTs of size 128
     FourStepConfig(n: 16384, n1: 128, n2: 128, log2n: 14,
                    pass1Kernel: "fft_128_stockham", pass1Threads: 32,
-                   pass2Kernel: "fft_128_stockham", pass2Threads: 32),
+                   pass2Kernel: "fft_128_stockham", pass2Threads: 32)
 ]
 
 struct FFTMultiHost {
@@ -73,7 +75,7 @@ struct FFTMultiHost {
         guard let queue = device.makeCommandQueue() else {
             fatalError("Could not create command queue")
         }
-        self.commandQueue = queue
+        commandQueue = queue
 
         // Load Metal shader source
         let metalSource: String
@@ -83,7 +85,7 @@ struct FFTMultiHost {
             (execDir as NSString).appendingPathComponent("fft_multisize.metal"),
             (execDir as NSString).appendingPathComponent("../../../fft_multisize.metal"),
             (execDir as NSString).appendingPathComponent("../../src/metal/fft_multisize.metal"),
-            (execDir as NSString).appendingPathComponent("../../../src/metal/fft_multisize.metal"),
+            (execDir as NSString).appendingPathComponent("../../../src/metal/fft_multisize.metal")
         ]
         var foundPath: String? = nil
         for path in searchPaths {
@@ -108,7 +110,7 @@ struct FFTMultiHost {
             "fft_256_stockham", "fft_512_stockham", "fft_1024_stockham",
             "fft_2048_stockham", "fft_4096_stockham",
             "fft_64_stockham", "fft_128_stockham",
-            "fft_twiddle_transpose", "fft_transpose",
+            "fft_twiddle_transpose", "fft_transpose"
         ]
         for name in kernelNames {
             guard let function = library.makeFunction(name: name) else {
@@ -122,17 +124,18 @@ struct FFTMultiHost {
         print()
     }
 
-    // Single-pass FFT for N <= 4096
+    /// Single-pass FFT for N <= 4096
     func runSinglePassFFT(input: [SIMD2<Float>], size: FFTSize, batchSize: Int = 1) -> [SIMD2<Float>] {
         assert(input.count == size.n * batchSize)
         let pipeline = pipelines[size.kernelName]!
 
         let inputBuffer = device.makeBuffer(bytes: input,
-            length: input.count * MemoryLayout<SIMD2<Float>>.stride,
-            options: .storageModeShared)!
+                                            length: input.count * MemoryLayout<SIMD2<Float>>.stride,
+                                            options: .storageModeShared)!
         let outputBuffer = device.makeBuffer(
             length: input.count * MemoryLayout<SIMD2<Float>>.stride,
-            options: .storageModeShared)!
+            options: .storageModeShared
+        )!
 
         let cb = commandQueue.makeCommandBuffer()!
         let enc = cb.makeComputeCommandEncoder()!
@@ -164,9 +167,9 @@ struct FFTMultiHost {
         assert(input.count == n * batchSize)
 
         let transposePipeline = pipelines["fft_transpose"]!
-        let pass1Pipeline = pipelines[config.pass1Kernel]!    // size N2 FFT
+        let pass1Pipeline = pipelines[config.pass1Kernel]! // size N2 FFT
         let twiddlePipeline = pipelines["fft_twiddle_transpose"]!
-        let pass2Pipeline = pipelines[config.pass2Kernel]!    // size N1 FFT
+        let pass2Pipeline = pipelines[config.pass2Kernel]! // size N1 FFT
 
         let byteCount = input.count * MemoryLayout<SIMD2<Float>>.stride
         let inputBuffer = device.makeBuffer(bytes: input, length: byteCount, options: .storageModeShared)!
@@ -184,7 +187,7 @@ struct FFTMultiHost {
         let elemThreads = min(256, n)
         let elemTGs = (n + elemThreads - 1) / elemThreads
 
-        for b in 0..<batchSize {
+        for b in 0 ..< batchSize {
             let batchOffset = b * n * MemoryLayout<SIMD2<Float>>.stride
 
             let cb = commandQueue.makeCommandBuffer()!
@@ -194,8 +197,8 @@ struct FFTMultiHost {
             enc0.setComputePipelineState(transposePipeline)
             enc0.setBuffer(inputBuffer, offset: batchOffset, index: 0)
             enc0.setBuffer(tempA, offset: batchOffset, index: 1)
-            enc0.setBuffer(n2Buf, offset: 0, index: 2)  // ROWS = N2
-            enc0.setBuffer(n1Buf, offset: 0, index: 3)  // COLS = N1
+            enc0.setBuffer(n2Buf, offset: 0, index: 2) // ROWS = N2
+            enc0.setBuffer(n1Buf, offset: 0, index: 3) // COLS = N1
             enc0.dispatchThreadgroups(MTLSizeMake(elemTGs, 1, 1),
                                       threadsPerThreadgroup: MTLSizeMake(elemThreads, 1, 1))
             enc0.endEncoding()
@@ -214,8 +217,8 @@ struct FFTMultiHost {
             enc2.setComputePipelineState(twiddlePipeline)
             enc2.setBuffer(tempB, offset: batchOffset, index: 0)
             enc2.setBuffer(tempC, offset: batchOffset, index: 1)
-            enc2.setBuffer(n1Buf, offset: 0, index: 2)  // N1 (rows of input)
-            enc2.setBuffer(n2Buf, offset: 0, index: 3)  // N2 (cols of input)
+            enc2.setBuffer(n1Buf, offset: 0, index: 2) // N1 (rows of input)
+            enc2.setBuffer(n2Buf, offset: 0, index: 3) // N2 (cols of input)
             enc2.dispatchThreadgroups(MTLSizeMake(elemTGs, 1, 1),
                                       threadsPerThreadgroup: MTLSizeMake(elemThreads, 1, 1))
             enc2.endEncoding()
@@ -234,8 +237,8 @@ struct FFTMultiHost {
             enc4.setComputePipelineState(transposePipeline)
             enc4.setBuffer(tempD, offset: batchOffset, index: 0)
             enc4.setBuffer(outputBuffer, offset: batchOffset, index: 1)
-            enc4.setBuffer(n2Buf, offset: 0, index: 2)  // ROWS = N2
-            enc4.setBuffer(n1Buf, offset: 0, index: 3)  // COLS = N1
+            enc4.setBuffer(n2Buf, offset: 0, index: 2) // ROWS = N2
+            enc4.setBuffer(n1Buf, offset: 0, index: 3) // COLS = N1
             enc4.dispatchThreadgroups(MTLSizeMake(elemTGs, 1, 1),
                                       threadsPerThreadgroup: MTLSizeMake(elemThreads, 1, 1))
             enc4.endEncoding()
@@ -248,7 +251,7 @@ struct FFTMultiHost {
         return Array(UnsafeBufferPointer(start: ptr, count: input.count))
     }
 
-    // Unified dispatch
+    /// Unified dispatch
     func runFFT(input: [SIMD2<Float>], n: Int, batchSize: Int = 1) -> [SIMD2<Float>] {
         if let size = singlePassSizes.first(where: { $0.n == n }) {
             return runSinglePassFFT(input: input, size: size, batchSize: batchSize)
@@ -259,22 +262,25 @@ struct FFTMultiHost {
         fatalError("Unsupported FFT size: \(n)")
     }
 
-    // Timing for single-pass sizes
+    /// Timing for single-pass sizes
     func timeSinglePassFFT(size: FFTSize, batchSize: Int, warmup: Int = 3, repeats: Int = 10) -> Double {
         let n = size.n
         let pipeline = pipelines[size.kernelName]!
         var input = [SIMD2<Float>](repeating: .zero, count: n * batchSize)
-        for i in 0..<input.count { input[i] = SIMD2<Float>(Float.random(in: -1...1), Float.random(in: -1...1)) }
+        for i in 0 ..< input.count {
+            input[i] = SIMD2<Float>(Float.random(in: -1 ... 1), Float.random(in: -1 ... 1))
+        }
 
         let inputBuffer = device.makeBuffer(bytes: input,
-            length: input.count * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
+                                            length: input.count * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
         let outputBuffer = device.makeBuffer(
-            length: input.count * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
+            length: input.count * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared
+        )!
 
         let tg = MTLSizeMake(batchSize, 1, 1)
         let tpt = MTLSizeMake(size.threadsPerGroup, 1, 1)
 
-        for _ in 0..<warmup {
+        for _ in 0 ..< warmup {
             let cb = commandQueue.makeCommandBuffer()!
             let enc = cb.makeComputeCommandEncoder()!
             enc.setComputePipelineState(pipeline)
@@ -286,7 +292,7 @@ struct FFTMultiHost {
         }
 
         var times: [Double] = []
-        for _ in 0..<repeats {
+        for _ in 0 ..< repeats {
             let cb = commandQueue.makeCommandBuffer()!
             let enc = cb.makeComputeCommandEncoder()!
             enc.setComputePipelineState(pipeline)
@@ -301,11 +307,13 @@ struct FFTMultiHost {
         return times[times.count / 2]
     }
 
-    // Timing for four-step sizes (5 GPU dispatches: transpose, FFT, twiddle+transpose, FFT, transpose)
+    /// Timing for four-step sizes (5 GPU dispatches: transpose, FFT, twiddle+transpose, FFT, transpose)
     func timeFourStepFFT(config: FourStepConfig, batchSize: Int, warmup: Int = 3, repeats: Int = 10) -> Double {
         let n = config.n
         var input = [SIMD2<Float>](repeating: .zero, count: n * batchSize)
-        for i in 0..<input.count { input[i] = SIMD2<Float>(Float.random(in: -1...1), Float.random(in: -1...1)) }
+        for i in 0 ..< input.count {
+            input[i] = SIMD2<Float>(Float.random(in: -1 ... 1), Float.random(in: -1 ... 1))
+        }
 
         let byteCount = input.count * MemoryLayout<SIMD2<Float>>.stride
         let inputBuffer = device.makeBuffer(bytes: input, length: byteCount, options: .storageModeShared)!
@@ -381,14 +389,14 @@ struct FFTMultiHost {
             enc4.endEncoding()
         }
 
-        for _ in 0..<warmup {
+        for _ in 0 ..< warmup {
             let cb = commandQueue.makeCommandBuffer()!
             encodeFiveStep(cb: cb)
             cb.commit(); cb.waitUntilCompleted()
         }
 
         var times: [Double] = []
-        for _ in 0..<repeats {
+        for _ in 0 ..< repeats {
             let cb = commandQueue.makeCommandBuffer()!
             encodeFiveStep(cb: cb)
             cb.commit(); cb.waitUntilCompleted()
@@ -415,7 +423,9 @@ struct FFTMultiHost {
 
 func vdspFFT(input: [SIMD2<Float>], n: Int) -> [SIMD2<Float>] {
     var log2n_val = 0
-    var v = n; while v > 1 { v >>= 1; log2n_val += 1 }
+    var v = n; while v > 1 {
+        v >>= 1; log2n_val += 1
+    }
     let log2n = vDSP_Length(log2n_val)
 
     guard let fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2)) else {
@@ -425,7 +435,7 @@ func vdspFFT(input: [SIMD2<Float>], n: Int) -> [SIMD2<Float>] {
 
     var realIn = [Float](repeating: 0, count: n)
     var imagIn = [Float](repeating: 0, count: n)
-    for i in 0..<n {
+    for i in 0 ..< n {
         realIn[i] = input[i].x
         imagIn[i] = input[i].y
     }
@@ -446,7 +456,7 @@ func vdspFFT(input: [SIMD2<Float>], n: Int) -> [SIMD2<Float>] {
     }
 
     var result = [SIMD2<Float>](repeating: .zero, count: n)
-    for i in 0..<n {
+    for i in 0 ..< n {
         result[i] = SIMD2<Float>(realOut[i], imagOut[i])
     }
     return result
@@ -458,8 +468,8 @@ func vdspFFT(input: [SIMD2<Float>], n: Int) -> [SIMD2<Float>] {
 
 func generateRandomSignal(n: Int) -> [SIMD2<Float>] {
     var signal = [SIMD2<Float>](repeating: .zero, count: n)
-    for k in 0..<n {
-        signal[k] = SIMD2<Float>(Float.random(in: -1...1), Float.random(in: -1...1))
+    for k in 0 ..< n {
+        signal[k] = SIMD2<Float>(Float.random(in: -1 ... 1), Float.random(in: -1 ... 1))
     }
     return signal
 }
@@ -474,7 +484,7 @@ func validate(metal: [SIMD2<Float>], reference: [SIMD2<Float>], label: String) -
     var l2ErrorSq: Float = 0
     var l2RefSq: Float = 0
 
-    for i in 0..<n {
+    for i in 0 ..< n {
         let diff = metal[i] - reference[i]
         let absErr = sqrt(diff.x * diff.x + diff.y * diff.y)
         let refMag = sqrt(reference[i].x * reference[i].x + reference[i].y * reference[i].y)
@@ -582,7 +592,7 @@ struct FFTMultiMain {
 // MARK: - Utilities
 
 extension String {
-    static func *(lhs: String, rhs: Int) -> String {
+    static func * (lhs: String, rhs: Int) -> String {
         String(repeating: lhs, count: rhs)
     }
 }

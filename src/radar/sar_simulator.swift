@@ -23,53 +23,53 @@ struct SARParameters {
     // Range parameters
     let nRange: Int
     let nAzimuth: Int
-    let bandwidth: Double = 100e6   // Chirp bandwidth (Hz)
-    let pulseDuration: Double = 10e-6  // Pulse duration (s)
-    let prf: Double = 1000.0        // Pulse repetition frequency (Hz)
-    let samplingRate: Double        // Range sampling rate (Hz)
+    let bandwidth: Double = 100e6 // Chirp bandwidth (Hz)
+    let pulseDuration: Double = 10e-6 // Pulse duration (s)
+    let prf: Double = 1000.0 // Pulse repetition frequency (Hz)
+    let samplingRate: Double // Range sampling rate (Hz)
 
     // Platform parameters
-    let velocity: Double = 100.0    // Platform velocity (m/s)
-    let carrierFreq: Double = 10e9  // Carrier frequency (Hz) — X-band
-    let wavelength: Double          // Carrier wavelength (m)
+    let velocity: Double = 100.0 // Platform velocity (m/s)
+    let carrierFreq: Double = 10e9 // Carrier frequency (Hz) — X-band
+    let wavelength: Double // Carrier wavelength (m)
 
     // Derived
-    let chirpRate: Double           // Kr = B / Tp
-    let rangeResolution: Double     // delta_r = c / (2*B)
-    let azimuthResolution: Double   // delta_a = wavelength / (2 * beamwidthAngle) — approximate
-    let c: Double = 299_792_458.0   // Speed of light (m/s)
+    let chirpRate: Double // Kr = B / Tp
+    let rangeResolution: Double // delta_r = c / (2*B)
+    let azimuthResolution: Double // delta_a = wavelength / (2 * beamwidthAngle) — approximate
+    let c: Double = 299_792_458.0 // Speed of light (m/s)
 
-    // Scene geometry
-    let centerRange: Double = 20_000.0  // Scene center range (m)
+    /// Scene geometry
+    let centerRange: Double = 20000.0 // Scene center range (m)
 
     // Sampling
-    let rangePixelSpacing: Double   // c / (2 * fs)
+    let rangePixelSpacing: Double // c / (2 * fs)
     let azimuthPixelSpacing: Double // v / PRF
 
     init(nRange: Int = 4096, nAzimuth: Int = 4096) {
         self.nRange = nRange
         self.nAzimuth = nAzimuth
-        self.wavelength = c / carrierFreq
-        self.chirpRate = bandwidth / pulseDuration
-        self.rangeResolution = c / (2.0 * bandwidth)
-        self.samplingRate = bandwidth * 1.2  // 20% oversampling
-        self.rangePixelSpacing = c / (2.0 * samplingRate)
-        self.azimuthPixelSpacing = velocity / prf
+        wavelength = c / carrierFreq
+        chirpRate = bandwidth / pulseDuration
+        rangeResolution = c / (2.0 * bandwidth)
+        samplingRate = bandwidth * 1.2 // 20% oversampling
+        rangePixelSpacing = c / (2.0 * samplingRate)
+        azimuthPixelSpacing = velocity / prf
 
         // Azimuth resolution depends on antenna length; for simplicity use
         // the synthetic aperture resolution: delta_a ≈ D/2 where D is antenna length
         // We'll use wavelength * R / (2 * L_sa) where L_sa is synthetic aperture length
         // For this simulation, just compute from parameters
-        self.azimuthResolution = velocity / (2.0 * bandwidth) * (c / carrierFreq) * 1000
+        azimuthResolution = velocity / (2.0 * bandwidth) * (c / carrierFreq) * 1000
         // More precisely, azimuth resolution = v / (2 * Doppler_bandwidth)
         // We'll compute this properly in the metrics
     }
 }
 
 struct PointTarget {
-    let rangePosition: Double   // Slant range to target (m)
+    let rangePosition: Double // Slant range to target (m)
     let azimuthPosition: Double // Along-track position of target (m)
-    let amplitude: Double       // Reflectivity amplitude
+    let amplitude: Double // Reflectivity amplitude
 
     // Grid indices (computed after simulation)
     var expectedRangeBin: Int = 0
@@ -87,7 +87,7 @@ class SARSimulator {
     init(params: SARParameters, targets: [PointTarget]) {
         self.params = params
         self.targets = targets
-        self.rawData = [SIMD2<Float>](repeating: .zero, count: params.nAzimuth * params.nRange)
+        rawData = [SIMD2<Float>](repeating: .zero, count: params.nAzimuth * params.nRange)
     }
 
     func simulate() {
@@ -124,9 +124,9 @@ class SARSimulator {
             print("    Expected bins: range=\(expectedRgBin), azimuth=\(expectedAzBin)")
 
             // For each azimuth pulse
-            for azIdx in 0..<Na {
-                let eta = azimuthTimeStart + Double(azIdx) / p.prf  // Slow time
-                let platformX = p.velocity * eta  // Platform position
+            for azIdx in 0 ..< Na {
+                let eta = azimuthTimeStart + Double(azIdx) / p.prf // Slow time
+                let platformX = p.velocity * eta // Platform position
 
                 // Instantaneous slant range (flat earth, broadside)
                 let dx = platformX - x_t
@@ -136,9 +136,9 @@ class SARSimulator {
                 let tau0 = 2.0 * R_eta / p.c
 
                 // For each range sample, compute received signal
-                for rgIdx in 0..<Nr {
-                    let tau = rangeTimeStart + Double(rgIdx) / p.samplingRate  // Fast time
-                    let dt = tau - tau0  // Time relative to echo arrival
+                for rgIdx in 0 ..< Nr {
+                    let tau = rangeTimeStart + Double(rgIdx) / p.samplingRate // Fast time
+                    let dt = tau - tau0 // Time relative to echo arrival
 
                     // Check if within pulse duration
                     if abs(dt) <= p.pulseDuration / 2.0 {
@@ -168,8 +168,8 @@ class SARSimulator {
     private func addNoise(snrDB: Double) {
         // Compute signal power
         var signalPower: Double = 0
-        var signalCount: Int = 0
-        for i in 0..<rawData.count {
+        var signalCount = 0
+        for i in 0 ..< rawData.count {
             let mag2 = Double(rawData[i].x * rawData[i].x + rawData[i].y * rawData[i].y)
             if mag2 > 0 {
                 signalPower += mag2
@@ -180,12 +180,12 @@ class SARSimulator {
         signalPower /= Double(signalCount)
 
         let noisePower = signalPower / pow(10.0, snrDB / 10.0)
-        let noiseStd = Float(sqrt(noisePower / 2.0))  // Per component (real, imag)
+        let noiseStd = Float(sqrt(noisePower / 2.0)) // Per component (real, imag)
 
         // Box-Muller for Gaussian noise
         for i in stride(from: 0, to: rawData.count - 1, by: 2) {
-            let u1 = max(Float.random(in: 0..<1), 1e-10)
-            let u2 = Float.random(in: 0..<1)
+            let u1 = max(Float.random(in: 0 ..< 1), 1e-10)
+            let u2 = Float.random(in: 0 ..< 1)
             let r = noiseStd * sqrt(-2.0 * log(u1))
             let theta = 2.0 * Float.pi * u2
             let n1 = r * cos(theta)
@@ -193,8 +193,8 @@ class SARSimulator {
             rawData[i].x += n1
             rawData[i].y += n2
             if i + 1 < rawData.count {
-                let u3 = max(Float.random(in: 0..<1), 1e-10)
-                let u4 = Float.random(in: 0..<1)
+                let u3 = max(Float.random(in: 0 ..< 1), 1e-10)
+                let u4 = Float.random(in: 0 ..< 1)
                 let r2 = noiseStd * sqrt(-2.0 * log(u3))
                 let theta2 = 2.0 * Float.pi * u4
                 rawData[i + 1].x += r2 * cos(theta2)
@@ -203,7 +203,7 @@ class SARSimulator {
         }
     }
 
-    // Generate the range chirp reference signal (for matched filtering)
+    /// Generate the range chirp reference signal (for matched filtering)
     func generateChirpReference() -> [SIMD2<Float>] {
         let Nr = params.nRange
         var chirpRef = [SIMD2<Float>](repeating: .zero, count: Nr)
@@ -211,7 +211,7 @@ class SARSimulator {
         let nSamples = Int(params.pulseDuration * params.samplingRate)
         let halfSamples = nSamples / 2
 
-        for i in 0..<nSamples {
+        for i in 0 ..< nSamples {
             let t = Double(i - halfSamples) / params.samplingRate
             let phase = Double.pi * params.chirpRate * t * t
             let idx = i < halfSamples ? (Nr - halfSamples + i) : (i - halfSamples)
@@ -223,11 +223,11 @@ class SARSimulator {
         return chirpRef
     }
 
-    // Generate default point targets for testing
+    /// Generate default point targets for testing
     static func defaultTargets(params: SARParameters) -> [PointTarget] {
         let R0 = params.centerRange
-        let dr = params.rangeResolution * 50  // Spacing in range
-        let da = params.azimuthPixelSpacing * 50  // Spacing in azimuth
+        let dr = params.rangeResolution * 50 // Spacing in range
+        let da = params.azimuthPixelSpacing * 50 // Spacing in azimuth
 
         return [
             // Center target
@@ -239,7 +239,7 @@ class SARSimulator {
             // Offset in both
             PointTarget(rangePosition: R0 - dr, azimuthPosition: -da, amplitude: 1.0),
             // Far offset
-            PointTarget(rangePosition: R0 + 2 * dr, azimuthPosition: -2 * da, amplitude: 0.8),
+            PointTarget(rangePosition: R0 + 2 * dr, azimuthPosition: -2 * da, amplitude: 0.8)
         ]
     }
 }

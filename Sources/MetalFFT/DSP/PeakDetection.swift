@@ -4,7 +4,6 @@ import Accelerate
 
 /// Stateless frequency-domain peak detection utilities.
 public enum PeakDetection {
-
     // MARK: - Simple Peak
 
     /// Returns the index and value of the maximum in `magnitudes`, optionally restricted to `range`.
@@ -19,7 +18,7 @@ public enum PeakDetection {
 
         var maxVal: Float = 0
         var maxIdx: vDSP_Length = 0
-        vDSP_maxvi(Array(magnitudes[lo..<hi]), 1, &maxVal, &maxIdx, vDSP_Length(hi - lo))
+        vDSP_maxvi(Array(magnitudes[lo ..< hi]), 1, &maxVal, &maxIdx, vDSP_Length(hi - lo))
         return (index: lo + Int(maxIdx), value: maxVal)
     }
 
@@ -57,7 +56,7 @@ public enum PeakDetection {
         var bestScore: Float = 0
         var bestIndex = -1
 
-        for i in minIndex...maxIndex where magnitudes[i] > magnitudeThreshold {
+        for i in minIndex ... maxIndex where magnitudes[i] > magnitudeThreshold {
             let score = harmonicScore(magnitudes: magnitudes, candidateIndex: i,
                                       count: count, sampleRate: sampleRate, fftSize: fftSize,
                                       freqPerBin: freqPerBin)
@@ -95,7 +94,9 @@ public enum PeakDetection {
             peaks.append((index: idx, value: maxVal))
             let lo = max(0, idx - minSpacing)
             let hi = min(scratch.count - 1, idx + minSpacing)
-            for i in lo...hi { scratch[i] = 0 }
+            for i in lo ... hi {
+                scratch[i] = 0
+            }
         }
 
         return peaks.sorted { $0.index < $1.index }
@@ -121,10 +122,10 @@ public enum PeakDetection {
         guard peakIndex > 0, peakIndex < magnitudes.count - 1 else {
             return Double(peakIndex) * binWidth
         }
-        let left   = magnitudes[peakIndex - 1]
+        let left = magnitudes[peakIndex - 1]
         let center = magnitudes[peakIndex]
-        let right  = magnitudes[peakIndex + 1]
-        let denom  = 2.0 * (left - 2.0 * center + right)
+        let right = magnitudes[peakIndex + 1]
+        let denom = 2.0 * (left - 2.0 * center + right)
         guard denom != 0 else { return Double(peakIndex) * binWidth }
         let offset = Double(left - right) / Double(denom)
         return (Double(peakIndex) + offset) * binWidth
@@ -137,7 +138,7 @@ public enum PeakDetection {
         sampleRate: Double, fftSize: Int, freqPerBin: Double
     ) -> Float {
         var score = magnitudes[candidateIndex]
-        for harmonic in 2...5 {
+        for harmonic in 2 ... 5 {
             let hIdx = candidateIndex * harmonic
             if hIdx < count { score += magnitudes[hIdx] * 0.5 }
         }

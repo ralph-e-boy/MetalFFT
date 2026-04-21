@@ -1,5 +1,5 @@
-import Metal
 import Foundation
+import Metal
 
 // ============================================================================
 // DNA Spectral Analysis — Metal Host
@@ -29,7 +29,7 @@ public struct DNASpectralAnalyzer {
         guard let queue = device.makeCommandQueue() else {
             fatalError("Could not create command queue")
         }
-        self.commandQueue = queue
+        commandQueue = queue
 
         let options = MTLCompileOptions()
         options.fastMathEnabled = true
@@ -42,7 +42,7 @@ public struct DNASpectralAnalyzer {
             "\(execDir)/../../../src/dna",
             "\(execDir)/../../../../src/dna",
             "\(execDir)/../../../..",
-            FileManager.default.currentDirectoryPath,
+            FileManager.default.currentDirectoryPath
         ]
 
         func loadShader(_ filename: String) throws -> String {
@@ -54,7 +54,9 @@ public struct DNASpectralAnalyzer {
             }
             print("ERROR: Could not find \(filename)")
             print("Searched directories:")
-            for dir in searchDirs { print("  \(dir)") }
+            for dir in searchDirs {
+                print("  \(dir)")
+            }
             fatalError("Metal shader not found: \(filename)")
         }
 
@@ -73,11 +75,11 @@ public struct DNASpectralAnalyzer {
             return try device.makeComputePipelineState(function: fn)
         }
 
-        self.fftPipeline = try makePipeline(fftLib, "dna_fft_1024")
-        self.crossSpectralPipeline = try makePipeline(crossLib, "dna_cross_spectral")
-        self.period3Pipeline = try makePipeline(crossLib, "dna_period3_detect")
-        self.spectrogramPipeline = try makePipeline(specLib, "dna_spectrogram_1024")
-        self.spectrogram4chPipeline = try makePipeline(specLib, "dna_spectrogram_4ch_1024")
+        fftPipeline = try makePipeline(fftLib, "dna_fft_1024")
+        crossSpectralPipeline = try makePipeline(crossLib, "dna_cross_spectral")
+        period3Pipeline = try makePipeline(crossLib, "dna_period3_detect")
+        spectrogramPipeline = try makePipeline(specLib, "dna_spectrogram_1024")
+        spectrogram4chPipeline = try makePipeline(specLib, "dna_spectrogram_4ch_1024")
 
         print("DNA Spectral Analyzer initialized on: \(device.name)")
         print("  FFT pipeline max threads: \(fftPipeline.maxTotalThreadsPerThreadgroup)")
@@ -208,7 +210,7 @@ public struct DNASpectralAnalyzer {
 
     public func writePowerSpectrumTSV(result: CrossSpectralResult, N: Int, path: String) throws {
         var lines = ["frequency\tP_A\tP_T\tP_G\tP_C\tP_total"]
-        for k in 0..<(N / 2 + 1) {
+        for k in 0 ..< (N / 2 + 1) {
             let pa = result.power[4 * k]
             let pt = result.power[4 * k + 1]
             let pg = result.power[4 * k + 2]
@@ -220,8 +222,8 @@ public struct DNASpectralAnalyzer {
 
     public func writeCrossSpectrumTSV(result: CrossSpectralResult, N: Int, path: String) throws {
         var lines = ["frequency\tcoh_AT\tcoh_AG\tcoh_AC\tcoh_TG\tcoh_TC\tcoh_GC"]
-        for k in 0..<(N / 2 + 1) {
-            let c = (0..<6).map { String(result.coherence[6 * k + $0]) }
+        for k in 0 ..< (N / 2 + 1) {
+            let c = (0 ..< 6).map { String(result.coherence[6 * k + $0]) }
             lines.append("\(k)\t\(c.joined(separator: "\t"))")
         }
         try lines.joined(separator: "\n").write(toFile: path, atomically: true, encoding: .utf8)
@@ -229,9 +231,9 @@ public struct DNASpectralAnalyzer {
 
     public func writeSpectrogramTSV(result: SpectrogramResult, hopSize: Int, path: String) throws {
         var lines = ["position\tfrequency\tpower"]
-        for w in 0..<result.numWindows {
+        for w in 0 ..< result.numWindows {
             let pos = w * hopSize
-            for f in 0..<result.numFreqs {
+            for f in 0 ..< result.numFreqs {
                 let power = result.data[w * result.numFreqs + f]
                 if power > 1e-6 {
                     lines.append("\(pos)\t\(f)\t\(power)")
@@ -244,11 +246,11 @@ public struct DNASpectralAnalyzer {
     public func writePeriod3TSV(spectrogram: SpectrogramResult, hopSize: Int, path: String) throws {
         let k3 = 1024 / 3
         var lines = ["position\tperiod3_power\tnormalized_score"]
-        for w in 0..<spectrogram.numWindows {
+        for w in 0 ..< spectrogram.numWindows {
             let pos = w * hopSize
             let p3 = spectrogram.data[w * spectrogram.numFreqs + k3]
             var sumPower: Float = 0
-            for f in 1..<(spectrogram.numFreqs - 1) {
+            for f in 1 ..< (spectrogram.numFreqs - 1) {
                 sumPower += spectrogram.data[w * spectrogram.numFreqs + f]
             }
             let meanPower = sumPower / Float(spectrogram.numFreqs - 2)
@@ -260,7 +262,7 @@ public struct DNASpectralAnalyzer {
 }
 
 public extension String {
-    static func *(lhs: String, rhs: Int) -> String {
+    static func * (lhs: String, rhs: Int) -> String {
         String(repeating: lhs, count: rhs)
     }
 }

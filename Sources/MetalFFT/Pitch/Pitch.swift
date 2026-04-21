@@ -5,9 +5,8 @@ import Accelerate
 /// Music-theory utilities: frequency ↔ note name, MIDI note, and cents deviation.
 /// All frequencies are `Float` to match the library's GPU-native precision.
 public enum Pitch {
-
     public static let noteNames: [String] = [
-        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
     ]
 
     /// Maps a frequency to the nearest piano note.

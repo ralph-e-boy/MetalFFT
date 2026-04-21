@@ -19,14 +19,16 @@ public final class Convolver {
     public init(kernel: [Float], fftSize: Int) throws {
         precondition(fftSize > kernel.count,
                      "fftSize must be > kernel.count; got fftSize=\(fftSize), kernel.count=\(kernel.count)")
-        self.blockSize = fftSize
-        self.hopSize   = fftSize - kernel.count + 1
-        self.kernelLen = kernel.count
-        self.fft       = try MetalFFT(size: fftSize)
+        blockSize = fftSize
+        hopSize = fftSize - kernel.count + 1
+        kernelLen = kernel.count
+        fft = try MetalFFT(size: fftSize)
 
         var kernelComplex = [SIMD2<Float>](repeating: .zero, count: fftSize)
-        for i in 0..<kernel.count { kernelComplex[i] = SIMD2<Float>(kernel[i], 0) }
-        self.kernelSpectrum = try fft.forward(kernelComplex)
+        for i in 0 ..< kernel.count {
+            kernelComplex[i] = SIMD2<Float>(kernel[i], 0)
+        }
+        kernelSpectrum = try fft.forward(kernelComplex)
     }
 
     /// Convolves `signal` with the kernel using overlap-add.
@@ -43,13 +45,17 @@ public final class Convolver {
             let chunkLen = min(hopSize, signal.count - pos)
 
             // Fill block: chunk then zeros
-            for i in 0..<chunkLen { block[i] = SIMD2<Float>(signal[pos + i], 0) }
-            for i in chunkLen..<blockSize { block[i] = .zero }
+            for i in 0 ..< chunkLen {
+                block[i] = SIMD2<Float>(signal[pos + i], 0)
+            }
+            for i in chunkLen ..< blockSize {
+                block[i] = .zero
+            }
 
             try block.withUnsafeBufferPointer { try fft.forward(input: $0, output: &signalSpectrum) }
 
             // Pointwise complex multiply: S × K
-            for i in 0..<blockSize {
+            for i in 0 ..< blockSize {
                 let s = signalSpectrum[i], k = kernelSpectrum[i]
                 product[i] = SIMD2<Float>(s.x * k.x - s.y * k.y,
                                           s.x * k.y + s.y * k.x)
@@ -58,7 +64,7 @@ public final class Convolver {
             let ifftResult = try fft.inverse(product)
 
             // Overlap-add real parts
-            for i in 0..<blockSize {
+            for i in 0 ..< blockSize {
                 let outIdx = pos + i
                 if outIdx < output.count { output[outIdx] += ifftResult[i].x }
             }

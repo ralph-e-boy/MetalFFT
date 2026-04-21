@@ -1,5 +1,5 @@
-import Foundation
 import DNALib
+import Foundation
 
 // ============================================================================
 // Multilevel Spectral Analysis of Genomic DNA
@@ -14,7 +14,7 @@ import DNALib
 struct GenomeSpec {
     let name: String
     let path: String
-    let domain: String  // Bacteria, Archaea, Eukarya
+    let domain: String // Bacteria, Archaea, Eukarya
 }
 
 func findGenomes() -> [GenomeSpec] {
@@ -25,7 +25,7 @@ func findGenomes() -> [GenomeSpec] {
         "\(execDir)/../../../data/genomes",
         "\(execDir)/../../../../data/genomes",
         "\(execDir)/../../../../../data/genomes",
-        "\(FileManager.default.currentDirectoryPath)/data/genomes",
+        "\(FileManager.default.currentDirectoryPath)/data/genomes"
     ]
 
     var genomesDir = ""
@@ -78,15 +78,15 @@ func findGenomes() -> [GenomeSpec] {
         GenomeSpec(name: "Mouse chr19", path: "\(genomesDir)/m_musculus_chr19.fasta",
                    domain: "Eukarya"),
         GenomeSpec(name: "P. falciparum chr13", path: "\(genomesDir)/p_falciparum_chr13.fasta",
-                   domain: "Eukarya"),
+                   domain: "Eukarya")
     ]
 }
 
 func main() throws {
-    print("=" .padding(toLength: 72, withPad: "=", startingAt: 0))
+    print("=".padding(toLength: 72, withPad: "=", startingAt: 0))
     print("MULTILEVEL SPECTRAL FILTERING OF GENOMIC DNA")
     print("6-band decomposition with cross-spectral coherence")
-    print("=" .padding(toLength: 72, withPad: "=", startingAt: 0))
+    print("=".padding(toLength: 72, withPad: "=", startingAt: 0))
 
     let analyzer = try DNASpectralAnalyzer()
 
@@ -117,7 +117,7 @@ func main() throws {
         "\(execDir)/../../../data/genomes",
         "\(execDir)/../../../../data/genomes",
         "\(execDir)/../../../../../data/genomes",
-        "\(FileManager.default.currentDirectoryPath)/data/genomes",
+        "\(FileManager.default.currentDirectoryPath)/data/genomes"
     ]
     var outDir = FileManager.default.currentDirectoryPath
     for dir in outDirs {
@@ -205,7 +205,7 @@ func main() throws {
             let coh = result.avgBandCoherence[bIdx]
             let maxIdx = coh.enumerated().max(by: { $0.element < $1.element })!.offset
             var line = "| \(band.shortName) |"
-            for p in 0..<6 {
+            for p in 0 ..< 6 {
                 line += " \(String(format: "%.4f", coh[p])) |"
             }
             line += " **\(pairNames[maxIdx])** |"
@@ -217,8 +217,8 @@ func main() throws {
         comparativeLines.append("Cross-band correlations (top):")
         for (pIdx, pairName) in pairNames.enumerated() {
             var corrs: [(String, Float)] = []
-            for b1 in 0..<(bands.count - 1) {
-                for b2 in (b1+1)..<(bands.count - 1) {
+            for b1 in 0 ..< (bands.count - 1) {
+                for b2 in (b1 + 1) ..< (bands.count - 1) {
                     corrs.append(("\(bands[b1].shortName)-\(bands[b2].shortName)",
                                   result.crossBandCorrelation[b1][b2][pIdx]))
                 }

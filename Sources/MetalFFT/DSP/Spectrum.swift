@@ -4,7 +4,6 @@ import Accelerate
 
 /// Stateless spectral analysis utilities.
 public enum Spectrum {
-
     // MARK: - RMS
 
     /// RMS amplitude of a real sample buffer (equivalent to `vDSP_rmsqv`).
@@ -25,7 +24,7 @@ public enum Spectrum {
     /// `count` limits the number of bins returned; defaults to `complex.count`.
     public static func magnitudes(_ complex: [SIMD2<Float>], count: Int? = nil) -> [Float] {
         let n = count ?? complex.count
-        return (0..<n).map { i in
+        return (0 ..< n).map { i in
             let c = complex[i]
             return c.x * c.x + c.y * c.y
         }
@@ -80,7 +79,7 @@ public enum Spectrum {
         ) {
             self.lowFreqDominanceThreshold = lowFreqDominanceThreshold
             self.flatnessVarianceThreshold = flatnessVarianceThreshold
-            self.peakToMeanRatioThreshold  = peakToMeanRatioThreshold
+            self.peakToMeanRatioThreshold = peakToMeanRatioThreshold
         }
 
         public static let `default` = NoiseConfig()

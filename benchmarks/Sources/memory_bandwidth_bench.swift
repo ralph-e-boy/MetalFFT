@@ -4,8 +4,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 // =============================================================================
 
-import Metal
 import Foundation
+import Metal
 
 // MARK: - GPU Benchmark Harness
 
@@ -32,7 +32,7 @@ class GPUBenchmarkHarness {
         guard let queue = device.makeCommandQueue() else {
             throw BenchError.noQueue
         }
-        self.commandQueue = queue
+        commandQueue = queue
 
         // Load Metal shaders from .metal file adjacent to executable or source dir
         let metalSource: String
@@ -42,7 +42,7 @@ class GPUBenchmarkHarness {
             (execDir as NSString).appendingPathComponent("memory_bandwidth.metal"),
             (execDir as NSString).appendingPathComponent("FFTMicroBenchmarks_FFTMicroBenchmarks.bundle/memory_bandwidth.metal"),
             (execDir as NSString).appendingPathComponent("../Sources/memory_bandwidth.metal"),
-            (execDir as NSString).appendingPathComponent("../../Sources/memory_bandwidth.metal"),
+            (execDir as NSString).appendingPathComponent("../../Sources/memory_bandwidth.metal")
         ]
         var foundPath: String? = nil
         for path in searchPaths {
@@ -60,7 +60,7 @@ class GPUBenchmarkHarness {
 
         let options = MTLCompileOptions()
         do {
-            self.library = try device.makeLibrary(source: metalSource, options: options)
+            library = try device.makeLibrary(source: metalSource, options: options)
         } catch {
             print("ERROR: Metal shader compilation failed:")
             print(error)
@@ -132,13 +132,13 @@ class GPUBenchmarkHarness {
         }
 
         // Warmup runs
-        for _ in 0..<warmup {
+        for _ in 0 ..< warmup {
             _ = try encodeAndRun()
         }
 
         // Timed runs
         var times: [Double] = []
-        for _ in 0..<repeats {
+        for _ in 0 ..< repeats {
             let ms = try encodeAndRun()
             times.append(ms)
         }
@@ -161,10 +161,9 @@ class GPUBenchmarkHarness {
 // MARK: - Benchmark Suites
 
 extension GPUBenchmarkHarness {
-
-    // ========================================================================
-    // Benchmark 1: Threadgroup Memory Bandwidth
-    // ========================================================================
+    /// ========================================================================
+    /// Benchmark 1: Threadgroup Memory Bandwidth
+    /// ========================================================================
     func benchThreadgroupMemory() throws {
         print("── Benchmark 1: Threadgroup Memory Bandwidth ──────────────────────────")
         print()
@@ -183,7 +182,7 @@ extension GPUBenchmarkHarness {
         let patterns = [
             ("tgmem_sequential_rw", "Sequential"),
             ("tgmem_strided_rw", "Strided (stride=N)"),
-            ("tgmem_conflict_rw", "Bank-conflict (stride=32)"),
+            ("tgmem_conflict_rw", "Bank-conflict (stride=32)")
         ]
 
         for (kernelName, label) in patterns {
@@ -201,9 +200,9 @@ extension GPUBenchmarkHarness {
         print()
     }
 
-    // ========================================================================
-    // Benchmark 2: SIMD Shuffle Throughput
-    // ========================================================================
+    /// ========================================================================
+    /// Benchmark 2: SIMD Shuffle Throughput
+    /// ========================================================================
     func benchSimdShuffle() throws {
         print("── Benchmark 2: SIMD Shuffle Throughput ────────────────────────────────")
         print()
@@ -211,7 +210,7 @@ extension GPUBenchmarkHarness {
         let iterations: UInt32 = 10000
         let threadsPerTG = 256
         let numThreadgroups = 64
-        let shufflesPerIter = 10  // 5 shuffle + 5 shuffle_xor per iteration
+        let shufflesPerIter = 10 // 5 shuffle + 5 shuffle_xor per iteration
         let totalShuffles = Double(shufflesPerIter) * Double(iterations) * Double(threadsPerTG) * Double(numThreadgroups)
 
         let iterBuf = makeBuffer(iterations)
@@ -226,7 +225,7 @@ extension GPUBenchmarkHarness {
             buffers: [(outputBuf, 0), (iterBuf, 1)]
         )
         let gops = totalShuffles / (ms / 1000.0) / 1e9
-        let bytesPerShuffle = 4.0  // float
+        let bytesPerShuffle = 4.0 // float
         let gbps = gops * bytesPerShuffle
         print("  \(pad("float simd_shuffle", 28)) \(String(format: "%8.3f", ms)) ms  \(String(format: "%8.1f", gops)) Gshuffles/s  \(String(format: "%8.1f", gbps)) GB/s")
 
@@ -240,14 +239,14 @@ extension GPUBenchmarkHarness {
             buffers: [(outputBuf2, 0), (iterBuf, 1)]
         )
         let gops2 = totalShuffles / (ms2 / 1000.0) / 1e9
-        let gbps2 = gops2 * 8.0  // float2 = 8 bytes
+        let gbps2 = gops2 * 8.0 // float2 = 8 bytes
         print("  \(pad("float2 simd_shuffle", 28)) \(String(format: "%8.3f", ms2)) ms  \(String(format: "%8.1f", gops2)) Gshuffles/s  \(String(format: "%8.1f", gbps2)) GB/s")
         print()
     }
 
-    // ========================================================================
-    // Benchmark 3: Register ↔ Threadgroup Copy
-    // ========================================================================
+    /// ========================================================================
+    /// Benchmark 3: Register ↔ Threadgroup Copy
+    /// ========================================================================
     func benchRegToTgmem() throws {
         print("── Benchmark 3: Register ↔ Threadgroup Memory Copy ─────────────────────")
         print()
@@ -285,9 +284,9 @@ extension GPUBenchmarkHarness {
         print()
     }
 
-    // ========================================================================
-    // Benchmark 4: Occupancy vs Register Pressure
-    // ========================================================================
+    /// ========================================================================
+    /// Benchmark 4: Occupancy vs Register Pressure
+    /// ========================================================================
     func benchOccupancy() throws {
         print("── Benchmark 4: Occupancy vs Register Pressure ─────────────────────────")
         print()
@@ -295,15 +294,15 @@ extension GPUBenchmarkHarness {
         let iterations: UInt32 = 500
         let threadsPerTG = 256
         let numThreadgroups = 64
-        let tgMemSize = 4096  // 4 KiB — small to not constrain occupancy
+        let tgMemSize = 4096 // 4 KiB — small to not constrain occupancy
 
         let iterBuf = makeBuffer(iterations)
 
         let kernels: [(String, String, Int)] = [
-            ("occupancy_low_regs",   "~8 GPRs  (1 float)",   1),
-            ("occupancy_med_regs",   "~32 GPRs (16 floats)", 16),
-            ("occupancy_high_regs",  "~64 GPRs (32 floats)", 32),
-            ("occupancy_vhigh_regs", "~128 GPRs (64 floats)", 64),
+            ("occupancy_low_regs", "~8 GPRs  (1 float)", 1),
+            ("occupancy_med_regs", "~32 GPRs (16 floats)", 16),
+            ("occupancy_high_regs", "~64 GPRs (32 floats)", 32),
+            ("occupancy_vhigh_regs", "~128 GPRs (64 floats)", 64)
         ]
 
         for (kernelName, label, _) in kernels {
@@ -327,9 +326,9 @@ extension GPUBenchmarkHarness {
         print()
     }
 
-    // ========================================================================
-    // Benchmark 5: Optimal Thread Count Sweep
-    // ========================================================================
+    /// ========================================================================
+    /// Benchmark 5: Optimal Thread Count Sweep
+    /// ========================================================================
     func benchThreadCountSweep() throws {
         print("── Benchmark 5: Optimal Thread Count Sweep ─────────────────────────────")
         print()
@@ -359,7 +358,7 @@ extension GPUBenchmarkHarness {
             )
 
             // Throughput: total butterfly-like ops
-            let opsPerIter = Double(totalElements) * Double(numThreadgroups) * 4.0  // ~4 FLOPs per element
+            let opsPerIter = Double(totalElements) * Double(numThreadgroups) * 4.0 // ~4 FLOPs per element
             let totalOps = opsPerIter * Double(iterations)
             let gflops = totalOps / (ms / 1000.0) / 1e9
 
@@ -378,9 +377,9 @@ enum BenchError: Error, CustomStringConvertible {
 
     var description: String {
         switch self {
-        case .noDevice: return "No Metal device found"
-        case .noQueue: return "Could not create command queue"
-        case .noFunction(let name): return "Metal function '\(name)' not found"
+        case .noDevice: "No Metal device found"
+        case .noQueue: "Could not create command queue"
+        case let .noFunction(name): "Metal function '\(name)' not found"
         }
     }
 }
@@ -436,4 +435,3 @@ func benchmarkMain() throws {
     print("  swift run FFTMicroBenchmarks shuffle     # Same as 2")
     print("=" * 72)
 }
-

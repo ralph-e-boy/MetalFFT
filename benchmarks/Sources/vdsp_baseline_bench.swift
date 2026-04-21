@@ -41,14 +41,14 @@ func benchmarkVDSP(fftSize: Int, batchSize: Int, warmup: Int = 5, repeats: Int =
         imagOut.deallocate()
     }
 
-    for i in 0..<totalCount {
-        realIn[i] = Float.random(in: -1...1)
-        imagIn[i] = Float.random(in: -1...1)
+    for i in 0 ..< totalCount {
+        realIn[i] = Float.random(in: -1 ... 1)
+        imagIn[i] = Float.random(in: -1 ... 1)
     }
 
-    // Helper to run one batch
+    /// Helper to run one batch
     func runBatch() {
-        for b in 0..<batchSize {
+        for b in 0 ..< batchSize {
             let offset = b * fftSize
             var splitIn = DSPSplitComplex(realp: realIn + offset, imagp: imagIn + offset)
             var splitOut = DSPSplitComplex(realp: realOut + offset, imagp: imagOut + offset)
@@ -57,7 +57,7 @@ func benchmarkVDSP(fftSize: Int, batchSize: Int, warmup: Int = 5, repeats: Int =
     }
 
     // Warmup
-    for _ in 0..<warmup {
+    for _ in 0 ..< warmup {
         runBatch()
     }
 
@@ -68,7 +68,7 @@ func benchmarkVDSP(fftSize: Int, batchSize: Int, warmup: Int = 5, repeats: Int =
 
     // Timed runs
     var times = [Double](repeating: 0, count: repeats)
-    for r in 0..<repeats {
+    for r in 0 ..< repeats {
         let start = mach_absolute_time()
         runBatch()
         let end = mach_absolute_time()
