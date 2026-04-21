@@ -3,7 +3,7 @@ BIN_DIR   = bin
 SWIFTC    = swiftc -O -framework Metal -framework Accelerate
 SWIFTC_LIB = $(SWIFTC) -parse-as-library
 
-.PHONY: docs docs-llm test clean-docs demo demo-fft demo-ct demo-batched demo-multisize demo-radar
+.PHONY: docs docs-llm test clean-docs demo demo-fft demo-ct demo-batched demo-multisize demo-radar demo-dna
 
 docs:
 	@mkdir -p $(DOCS_DIR)
@@ -78,5 +78,9 @@ demo-multisize: $(BIN_DIR)/fft_multi_host
 demo-radar: $(BIN_DIR)/radar/sar
 	@echo "\n=== SAR Range-Doppler (fused vs unfused) ==="
 	$(BIN_DIR)/radar/sar 4096 --fused
+
+demo-dna:
+	@echo "\n=== DNA Spectral Analysis (4-channel MultiChannelFFT + CrossSpectral) ==="
+	swift run -c release DNASpectralDemo
 
 demo: demo-fft demo-ct demo-batched demo-multisize demo-radar

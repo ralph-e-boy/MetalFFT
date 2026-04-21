@@ -93,34 +93,49 @@ final class MetalContext {
         device = dev
         queue = q
 
-        guard let url = Bundle.module.url(forResource: "fft_multisize", withExtension: "metal") else {
-            throw FFTError.libraryBuildFailed(
-                NSError(domain: "MetalFFT", code: 1,
-                        userInfo: [NSLocalizedDescriptionKey: "fft_multisize.metal not found in bundle"])
-            )
-        }
-        let source: String
-        do { source = try String(contentsOf: url, encoding: .utf8) }
-        catch { throw FFTError.libraryBuildFailed(error) }
-
         let options = MTLCompileOptions()
         options.fastMathEnabled = true
-        let library: MTLLibrary
-        do { library = try dev.makeLibrary(source: source, options: options) }
-        catch { throw FFTError.libraryBuildFailed(error) }
 
-        let kernelNames = [
-            "fft_64_stockham", "fft_128_stockham",
-            "fft_256_stockham", "fft_512_stockham", "fft_1024_stockham",
-            "fft_2048_stockham", "fft_4096_stockham",
-            "fft_twiddle_transpose", "fft_transpose",
+        // Each entry: (resource name, [kernel functions it contains])
+        let sources: [(resource: String, kernels: [String])] = [
+            ("fft_multisize", [
+                "fft_64_stockham", "fft_128_stockham",
+                "fft_256_stockham", "fft_512_stockham", "fft_1024_stockham",
+                "fft_2048_stockham", "fft_4096_stockham",
+                "fft_twiddle_transpose", "fft_transpose",
+            ]),
+            ("fft_4096_batched",    ["fft_4096_batched"]),
+            ("fft_fused_convolve",  ["fft_fused_convolve_4096"]),
+            ("fft_cross_spectral",  ["fft_cross_spectral"]),
+            ("fft_fused_convolve_fp16", [
+                "fft_fused_convolve_fp16_pure",
+                "fft_fused_convolve_fp16_storage",
+                "fft_fused_convolve_fp16_mixed",
+            ]),
         ]
+
         var ps: [String: MTLComputePipelineState] = [:]
-        for name in kernelNames {
-            guard let fn = library.makeFunction(name: name) else {
-                throw FFTError.kernelNotFound(name)
+        for (resource, kernels) in sources {
+            guard let url = Bundle.module.url(forResource: resource, withExtension: "metal") else {
+                throw FFTError.libraryBuildFailed(
+                    NSError(domain: "MetalFFT", code: 1,
+                            userInfo: [NSLocalizedDescriptionKey: "\(resource).metal not found in bundle"])
+                )
             }
-            ps[name] = try dev.makeComputePipelineState(function: fn)
+            let source: String
+            do { source = try String(contentsOf: url, encoding: .utf8) }
+            catch { throw FFTError.libraryBuildFailed(error) }
+
+            let library: MTLLibrary
+            do { library = try dev.makeLibrary(source: source, options: options) }
+            catch { throw FFTError.libraryBuildFailed(error) }
+
+            for name in kernels {
+                guard let fn = library.makeFunction(name: name) else {
+                    throw FFTError.kernelNotFound(name)
+                }
+                ps[name] = try dev.makeComputePipelineState(function: fn)
+            }
         }
         pipelines = ps
     }
