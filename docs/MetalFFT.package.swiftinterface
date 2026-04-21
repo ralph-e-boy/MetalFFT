@@ -9,6 +9,143 @@ import Swift
 import _Concurrency
 import _StringProcessing
 import _SwiftConcurrencyShims
+final public class Convolver {
+  final public let blockSize: Swift.Int
+  final public let hopSize: Swift.Int
+  public init(kernel: [Swift.Float], fftSize: Swift.Int) throws
+  final public func apply(to signal: [Swift.Float]) throws -> [Swift.Float]
+  @objc deinit
+}
+extension MetalFFT.Convolver {
+  #if compiler(>=5.3) && $NonescapableTypes
+  public static func recommendedFFTSize(forKernelCount kernelCount: Swift.Int) -> Swift.Int?
+  #endif
+}
+final public class Correlator {
+  final public let fftSize: Swift.Int
+  public init(fftSize: Swift.Int) throws
+  final public func auto(_ signal: [Swift.Float]) throws -> [Swift.Float]
+  final public func cross(_ a: [Swift.Float], _ b: [Swift.Float]) throws -> [Swift.Float]
+  @objc deinit
+}
+public struct CrossSpectralResult {
+  public let channels: Swift.Int
+  public let fftSize: Swift.Int
+  public let power: [[Swift.Float]]
+  public let crossSpectra: [[Swift.SIMD2<Swift.Float>]]
+  public let coherence: [[Swift.Float]]
+  public var pairCount: Swift.Int {
+    get
+  }
+  public func pairIndex(_ i: Swift.Int, _ j: Swift.Int) -> Swift.Int
+}
+extension MetalFFT.PSD {
+  public static func crossSpectral(channels signals: [[Swift.Float]], fftSize: Swift.Int, hopSize: Swift.Int, sampleRate: Swift.Double, window windowType: MetalFFT.WindowType = .hann) throws -> MetalFFT.CrossSpectralResult
+}
+public struct AnalysisResult {
+  public let complex: [Swift.SIMD2<Swift.Float>]
+  public let sampleRate: Swift.Double
+  public let fftSize: Swift.Int
+  public var magnitudes: [Swift.Float] {
+    get
+  }
+  public var magnitudesDB: [Swift.Float] {
+    get
+  }
+  public var phase: [Swift.Float] {
+    get
+  }
+  public func binFrequency(_ bin: Swift.Int) -> Swift.Double
+  #if compiler(>=5.3) && $NonescapableTypes
+  public var dominantFreq: Swift.Float? {
+    get
+  }
+  #endif
+  #if compiler(>=5.3) && $NonescapableTypes
+  public var dominantNote: (name: Swift.String, octave: Swift.Int)? {
+    get
+  }
+  #endif
+  public var isNoise: Swift.Bool {
+    get
+  }
+  public var rms: Swift.Float {
+    get
+  }
+}
+final public class FFTAnalyzer {
+  final public let size: Swift.Int
+  final public let sampleRate: Swift.Double
+  public init(size: Swift.Int, sampleRate: Swift.Double, window windowType: MetalFFT.WindowType = .hann) throws
+  final public func analyze(_ samples: [Swift.Float]) throws -> MetalFFT.AnalysisResult
+  final public func analyze(_ samples: [Swift.Float], offset: Swift.Int) throws -> MetalFFT.AnalysisResult
+  @objc deinit
+}
+public struct BandEnergy {
+  public let sub: Swift.Float
+  public let bass: Swift.Float
+  public let low: Swift.Float
+  public let mid: Swift.Float
+  public let upper: Swift.Float
+  public let air: Swift.Float
+  public var all: [(name: Swift.String, energy: Swift.Float)] {
+    get
+  }
+  public var total: Swift.Float {
+    get
+  }
+}
+public struct FrequencyBands {
+  public let sampleRate: Swift.Double
+  public let fftSize: Swift.Int
+  public init(sampleRate: Swift.Double, fftSize: Swift.Int)
+  public func analyze(_ magnitudes: [Swift.Float]) -> MetalFFT.BandEnergy
+  public func analyzeNormalized(_ magnitudes: [Swift.Float]) -> MetalFFT.BandEnergy
+}
+final public class FusedConvolver {
+  public static let supportedSize: Swift.Int
+  public enum Precision {
+    case float16Pure
+    case float16Storage
+    case float16Mixed
+    case float32
+    public static func == (a: MetalFFT.FusedConvolver.Precision, b: MetalFFT.FusedConvolver.Precision) -> Swift.Bool
+    public func hash(into hasher: inout Swift.Hasher)
+    public var hashValue: Swift.Int {
+      get
+    }
+  }
+  final public let kernelLen: Swift.Int
+  final public let hopSize: Swift.Int
+  final public let precision: MetalFFT.FusedConvolver.Precision
+  public init(kernel: [Swift.Float], fftSize: Swift.Int = 4096, precision: MetalFFT.FusedConvolver.Precision = .float32) throws
+  final public func apply(to signal: [Swift.Float]) throws -> [Swift.Float]
+  @objc deinit
+}
+public enum OctaveBands {
+  public static let centerFrequencies: [Swift.Double]
+  public static func analyze(magnitudes: [Swift.Float], sampleRate: Swift.Double, fftSize: Swift.Int) -> [(center: Swift.Double, energy: Swift.Float)]
+  public static func energies(magnitudes: [Swift.Float], sampleRate: Swift.Double, fftSize: Swift.Int) -> [Swift.Float]
+}
+final public class OnsetDetector {
+  final public let sampleRate: Swift.Double
+  final public let fftSize: Swift.Int
+  final public let hopSize: Swift.Int
+  final public var onsets: [Swift.Double] {
+    get
+  }
+  final public var isPeak: Swift.Bool {
+    get
+  }
+  public init(sampleRate: Swift.Double, fftSize: Swift.Int = 1024, hopSize: Swift.Int = 256) throws
+  final public func feed(_ samples: [Swift.Float]) throws
+  final public func reset()
+  @objc deinit
+}
+public enum PSD {
+  public static func welch(signal: [Swift.Float], fftSize: Swift.Int, hopSize: Swift.Int, sampleRate: Swift.Double, window windowType: MetalFFT.WindowType = .hann) throws -> [Swift.Float]
+  public static func coherence(a: [Swift.Float], b: [Swift.Float], fftSize: Swift.Int, hopSize: Swift.Int, sampleRate: Swift.Double, window windowType: MetalFFT.WindowType = .hann) throws -> [Swift.Float]
+}
 public enum PeakDetection {
   #if compiler(>=5.3) && $NonescapableTypes
   public static func peak(in magnitudes: [Swift.Float], range: Swift.Range<Swift.Int>? = nil) -> (index: Swift.Int, value: Swift.Float)?
@@ -16,7 +153,30 @@ public enum PeakDetection {
   #if compiler(>=5.3) && $NonescapableTypes
   public static func fundamentalFrequency(magnitudes: [Swift.Float], sampleRate: Swift.Double, fftSize: Swift.Int, minFreq: Swift.Double, maxFreq: Swift.Double, magnitudeThreshold: Swift.Float = 0.12) -> (index: Swift.Int, rawFrequency: Swift.Double)?
   #endif
+  public static func topPeaks(in magnitudes: [Swift.Float], count: Swift.Int, minSpacing: Swift.Int = 1) -> [(index: Swift.Int, value: Swift.Float)]
   public static func parabolicInterpolation(magnitudes: [Swift.Float], peakIndex: Swift.Int, sampleRate: Swift.Double, fftSize: Swift.Int) -> Swift.Double
+}
+public struct STFTFrame {
+  public let complex: [Swift.SIMD2<Swift.Float>]
+  public let magnitudes: [Swift.Float]
+  public var magnitudesDB: [Swift.Float] {
+    get
+  }
+  public var phase: [Swift.Float] {
+    get
+  }
+}
+final public class STFT {
+  final public let fftSize: Swift.Int
+  final public let hopSize: Swift.Int
+  final public let sampleRate: Swift.Double
+  public init(fftSize: Swift.Int, hopSize: Swift.Int, window windowType: MetalFFT.WindowType = .hann, sampleRate: Swift.Double) throws
+  final public func frameCount(for sampleCount: Swift.Int) -> Swift.Int
+  final public func binFrequency(_ bin: Swift.Int) -> Swift.Double
+  final public func frameTime(_ frameIndex: Swift.Int) -> Swift.Double
+  final public func analyze(_ signal: [Swift.Float]) throws -> [MetalFFT.STFTFrame]
+  final public func spectrogram(_ signal: [Swift.Float]) throws -> [[Swift.Float]]
+  @objc deinit
 }
 public enum Spectrum {
   public static func rms(_ samples: Swift.UnsafeBufferPointer<Swift.Float>) -> Swift.Float
@@ -25,6 +185,8 @@ public enum Spectrum {
   public static func magnitudes(_ complex: [Swift.SIMD2<Swift.Float>], count: Swift.Int? = nil) -> [Swift.Float]
   #endif
   public static func normalize(_ magnitudes: inout [Swift.Float])
+  public static func toDecibels(_ magnitudes: [Swift.Float], floorDB: Swift.Float = -120) -> [Swift.Float]
+  public static func phase(_ complex: [Swift.SIMD2<Swift.Float>]) -> [Swift.Float]
   public struct NoiseConfig {
     public var lowFreqDominanceThreshold: Swift.Float
     public var flatnessVarianceThreshold: Swift.Float
@@ -34,18 +196,39 @@ public enum Spectrum {
   }
   public static func isNoise(_ magnitudes: [Swift.Float], sampleRate: Swift.Double, fftSize: Swift.Int, config: MetalFFT.Spectrum.NoiseConfig = .default) -> Swift.Bool
 }
+public enum WindowType {
+  case hann
+  case hamming
+  case blackman
+  case flatTop
+  case kaiser(beta: Swift.Double)
+  case rectangular
+  public func coefficients(_ size: Swift.Int) -> [Swift.Float]
+}
 public enum Window {
   public static func hann(_ size: Swift.Int) -> [Swift.Float]
   public static func hamming(_ size: Swift.Int) -> [Swift.Float]
+  public static func blackman(_ size: Swift.Int) -> [Swift.Float]
+  public static func flatTop(_ size: Swift.Int) -> [Swift.Float]
+  public static func kaiser(_ size: Swift.Int, beta: Swift.Double = 6.0) -> [Swift.Float]
   public static func apply(_ window: [Swift.Float], input: Swift.UnsafeBufferPointer<Swift.Float>, output: inout [Swift.Float])
   public static func apply(_ window: [Swift.Float], to samples: [Swift.Float]) -> [Swift.Float]
 }
 final public class MetalFFT {
   final public let size: Swift.Int
   public init(size: Swift.Int) throws
+  final public func inverse(_ input: [Swift.SIMD2<Swift.Float>]) throws -> [Swift.SIMD2<Swift.Float>]
   final public func forward(_ input: [Swift.SIMD2<Swift.Float>]) throws -> [Swift.SIMD2<Swift.Float>]
   final public func forward(input: Swift.UnsafeBufferPointer<Swift.SIMD2<Swift.Float>>, output: inout [Swift.SIMD2<Swift.Float>]) throws
   final public func forward(batch input: [[Swift.SIMD2<Swift.Float>]]) throws -> [[Swift.SIMD2<Swift.Float>]]
+  @objc deinit
+}
+final public class MultiChannelFFT {
+  final public let channels: Swift.Int
+  final public let size: Swift.Int
+  public init(channels: Swift.Int, size: Swift.Int) throws
+  final public func forward(_ inputs: [[Swift.SIMD2<Swift.Float>]]) throws -> [[Swift.SIMD2<Swift.Float>]]
+  final public func inverse(_ inputs: [[Swift.SIMD2<Swift.Float>]]) throws -> [[Swift.SIMD2<Swift.Float>]]
   @objc deinit
 }
 public enum FFTError : Swift.Error, Swift.CustomStringConvertible {
@@ -65,17 +248,25 @@ public enum FFTError : Swift.Error, Swift.CustomStringConvertible {
 final public class FrequencyTracker {
   final public let smoothingWindow: Swift.Int
   public init(smoothingWindow: Swift.Int = 5)
-  @discardableResult
-  final public func track(_ rawFrequency: Swift.Double) -> Swift.Double
+  final public func track(_ frequency: Swift.Float) -> Swift.Float
   final public func reset()
   @objc deinit
 }
 public enum Pitch {
   public static let noteNames: [Swift.String]
   #if compiler(>=5.3) && $NonescapableTypes
-  public static func note(frequency: Swift.Double, referenceA: Swift.Double = 440.0) -> (name: Swift.String, octave: Swift.Int)?
+  public static func note(frequency: Swift.Float, referenceA: Swift.Float = 440.0) -> (name: Swift.String, octave: Swift.Int)?
   #endif
   #if compiler(>=5.3) && $NonescapableTypes
-  public static func centsDeviation(frequency: Swift.Double, referenceA: Swift.Double = 440.0) -> Swift.Double?
+  public static func midiNote(frequency: Swift.Float, referenceA: Swift.Float = 440.0) -> Swift.Int?
+  #endif
+  #if compiler(>=5.3) && $NonescapableTypes
+  public static func midiNotes(frequencies: [Swift.Float], referenceA: Swift.Float = 440.0) -> [Swift.Int?]
+  #endif
+  public static func frequency(midiNote: Swift.Int, referenceA: Swift.Float = 440.0) -> Swift.Float
+  #if compiler(>=5.3) && $NonescapableTypes
+  public static func centsDeviation(frequency: Swift.Float, referenceA: Swift.Float = 440.0) -> Swift.Float?
   #endif
 }
+extension MetalFFT.FusedConvolver.Precision : Swift.Equatable {}
+extension MetalFFT.FusedConvolver.Precision : Swift.Hashable {}
