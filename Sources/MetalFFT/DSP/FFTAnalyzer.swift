@@ -21,16 +21,16 @@ public struct AnalysisResult {
     public func binFrequency(_ bin: Int) -> Double { Double(bin) * sampleRate / Double(fftSize) }
 
     /// Parabolic-interpolated dominant frequency in Hz, or `nil` if the spectrum looks like noise.
-    public var dominantFreq: Double? {
+    public var dominantFreq: Float? {
         let mags = magnitudes
         guard let peak = PeakDetection.fundamentalFrequency(
             magnitudes: mags, sampleRate: sampleRate, fftSize: fftSize,
             minFreq: 20, maxFreq: sampleRate / 2
         ) else { return nil }
-        return PeakDetection.parabolicInterpolation(
+        return Float(PeakDetection.parabolicInterpolation(
             magnitudes: mags, peakIndex: peak.index,
             sampleRate: sampleRate, fftSize: fftSize
-        )
+        ))
     }
 
     /// Nearest piano note for the dominant frequency, or `nil`.
