@@ -1,5 +1,5 @@
-import Metal
 import Foundation
+import Metal
 
 // ============================================================================
 // Multilevel Spectral Filtering of Genomic Sequences
@@ -28,8 +28,8 @@ import Foundation
 public struct SpectralBand {
     public let name: String
     public let shortName: String
-    public let binLow: Int     // lowest frequency bin (inclusive)
-    public let binHigh: Int    // highest frequency bin (inclusive)
+    public let binLow: Int // lowest frequency bin (inclusive)
+    public let binHigh: Int // highest frequency bin (inclusive)
     public let description: String
 
     public init(name: String, shortName: String, binLow: Int, binHigh: Int, description: String) {
@@ -48,7 +48,9 @@ public struct SpectralBand {
     }
 
     /// Number of frequency bins in this band
-    public var numBins: Int { binHigh - binLow + 1 }
+    public var numBins: Int {
+        binHigh - binLow + 1
+    }
 }
 
 /// Standard biologically-motivated bands for N=1024 FFT
@@ -82,22 +84,22 @@ public let standardGenomicBands: [SpectralBand] = [
         name: "Broadband", shortName: "B5",
         binLow: 1, binHigh: 512,
         description: "All frequencies: full-spectrum reference"
-    ),
+    )
 ]
 
 /// Per-band coherence features for a single genomic window
 public struct BandFeatures {
-    public let coherence: [Float]    // 6 pairwise coherences
-    public let phase: [Float]        // 6 pairwise phases
-    public let power: [Float]        // 4 channel powers (band-integrated)
-    public let entropy: Float        // spectral entropy within band
+    public let coherence: [Float] // 6 pairwise coherences
+    public let phase: [Float] // 6 pairwise phases
+    public let power: [Float] // 4 channel powers (band-integrated)
+    public let entropy: Float // spectral entropy within band
     public let conditionNumber: Float // cross-spectral matrix condition number
 }
 
 /// Result of multilevel spectral analysis for one window
 public struct MultilevelWindowResult {
-    public let position: Int         // start position in genome
-    public let bandFeatures: [BandFeatures]  // one per band
+    public let position: Int // start position in genome
+    public let bandFeatures: [BandFeatures] // one per band
 }
 
 /// Full multilevel spectral analysis result
@@ -109,12 +111,12 @@ public struct MultilevelSpectralResult {
     public let windowResults: [MultilevelWindowResult]
 
     // Genome-wide averaged per-band coherence
-    public let avgBandCoherence: [[Float]]  // [bandIdx][6 pairs]
-    public let avgBandPhase: [[Float]]      // [bandIdx][6 pairs]
+    public let avgBandCoherence: [[Float]] // [bandIdx][6 pairs]
+    public let avgBandPhase: [[Float]] // [bandIdx][6 pairs]
 
-    // Cross-band correlation matrix
-    // crossBandCorrelation[b1][b2][pair] = correlation of coherence between bands b1 and b2
-    public let crossBandCorrelation: [[[Float]]]  // [band1][band2][6 pairs]
+    /// Cross-band correlation matrix
+    /// crossBandCorrelation[b1][b2][pair] = correlation of coherence between bands b1 and b2
+    public let crossBandCorrelation: [[[Float]]] // [band1][band2][6 pairs]
 }
 
 // ============================================================================
@@ -122,7 +124,6 @@ public struct MultilevelSpectralResult {
 // ============================================================================
 
 public extension DNASpectralAnalyzer {
-
     /// Compute position-resolved multilevel spectral features.
     ///
     /// For each overlapping N=1024 window, computes 4-channel FFT, then
@@ -138,7 +139,7 @@ public extension DNASpectralAnalyzer {
         overlap: Float = 0.5
     ) -> MultilevelSpectralResult {
         let N = 1024
-        let numFreqs = N / 2 + 1  // 513
+        let numFreqs = N / 2 + 1 // 513
         let hopSize = Int(Float(N) * (1.0 - overlap))
         let numWindows = max(0, (dna.count - N) / hopSize + 1)
         let numBands = bands.count
@@ -161,11 +162,11 @@ public extension DNASpectralAnalyzer {
         var windowResults = [MultilevelWindowResult]()
         windowResults.reserveCapacity(numWindows)
 
-        let pairs: [(Int, Int)] = [(0,1), (0,2), (0,3), (1,2), (1,3), (2,3)]
+        let pairs: [(Int, Int)] = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
 
-        for w in 0..<numWindows {
+        for w in 0 ..< numWindows {
             let offset = w * hopSize
-            let segmentDNA = Array(dna[offset..<(offset + N)])
+            let segmentDNA = Array(dna[offset ..< (offset + N)])
 
             // GPU: 4-channel FFT
             let spectra = runFFT(dna: segmentDNA)
@@ -183,7 +184,7 @@ public extension DNASpectralAnalyzer {
                 let kLo = max(band.binLow, 1)
                 let kHi = min(band.binHigh, numFreqs - 1)
 
-                for k in kLo...kHi {
+                for k in kLo ... kHi {
                     let ua = spectra[k]
                     let ut = spectra[N + k]
                     let ug = spectra[2 * N + k]
@@ -246,7 +247,7 @@ public extension DNASpectralAnalyzer {
                 ))
 
                 // Accumulate for genome-wide averages
-                for p in 0..<6 {
+                for p in 0 ..< 6 {
                     sumBandCoherence[bIdx][p] += Double(coh[p])
                     sumBandPhaseReal[bIdx][p] += Double(cos(ph[p]))
                     sumBandPhaseImag[bIdx][p] += Double(sin(ph[p]))
@@ -271,8 +272,8 @@ public extension DNASpectralAnalyzer {
         var avgBandCoh = [[Float]](repeating: [Float](repeating: 0, count: 6), count: numBands)
         var avgBandPh = [[Float]](repeating: [Float](repeating: 0, count: 6), count: numBands)
 
-        for b in 0..<numBands {
-            for p in 0..<6 {
+        for b in 0 ..< numBands {
+            for p in 0 ..< 6 {
                 avgBandCoh[b][p] = Float(sumBandCoherence[b][p] * invW)
                 avgBandPh[b][p] = Float(atan2(
                     sumBandPhaseImag[b][p] * invW,
@@ -289,28 +290,28 @@ public extension DNASpectralAnalyzer {
         )
 
         if numWindows > 10 {
-            for pIdx in 0..<6 {
+            for pIdx in 0 ..< 6 {
                 // Extract per-band time series of coherence for this pair
                 var series = [[Double]](repeating: [Double](repeating: 0, count: numWindows), count: numBands)
-                for w in 0..<numWindows {
-                    for b in 0..<numBands {
+                for w in 0 ..< numWindows {
+                    for b in 0 ..< numBands {
                         series[b][w] = Double(allWindowBandCoh[w * numBands + b][pIdx])
                     }
                 }
 
                 // Compute means
                 var means = [Double](repeating: 0, count: numBands)
-                for b in 0..<numBands {
+                for b in 0 ..< numBands {
                     means[b] = series[b].reduce(0, +) / Double(numWindows)
                 }
 
                 // Compute correlations
-                for b1 in 0..<numBands {
-                    for b2 in b1..<numBands {
+                for b1 in 0 ..< numBands {
+                    for b2 in b1 ..< numBands {
                         var sumXY: Double = 0
                         var sumX2: Double = 0
                         var sumY2: Double = 0
-                        for w in 0..<numWindows {
+                        for w in 0 ..< numWindows {
                             let dx = series[b1][w] - means[b1]
                             let dy = series[b2][w] - means[b2]
                             sumXY += dx * dy
@@ -344,23 +345,26 @@ public extension DNASpectralAnalyzer {
 // ============================================================================
 
 public extension MultilevelSpectralResult {
-
     /// Write genome-wide average per-band coherence table
     func writeBandCoherenceTSV(path: String) throws {
         let pairNames = ["AT", "AG", "AC", "TG", "TC", "GC"]
         var header = "band\tname\tbins\tperiod_low\tperiod_high"
-        for name in pairNames { header += "\tcoh_\(name)" }
-        for name in pairNames { header += "\tphase_\(name)" }
+        for name in pairNames {
+            header += "\tcoh_\(name)"
+        }
+        for name in pairNames {
+            header += "\tphase_\(name)"
+        }
 
         var lines = [header]
         for (bIdx, band) in bands.enumerated() {
             let (pLo, pHi) = band.periodRange
             var line = "\(band.shortName)\t\(band.name)\t\(band.binLow)-\(band.binHigh)"
             line += "\t\(String(format: "%.1f", pLo))\t\(pHi.isInfinite ? "inf" : String(format: "%.1f", pHi))"
-            for p in 0..<6 {
+            for p in 0 ..< 6 {
                 line += "\t\(String(format: "%.6f", avgBandCoherence[bIdx][p]))"
             }
-            for p in 0..<6 {
+            for p in 0 ..< 6 {
                 line += "\t\(String(format: "%.4f", avgBandPhase[bIdx][p]))"
             }
             lines.append(line)
@@ -376,12 +380,14 @@ public extension MultilevelSpectralResult {
         for (pIdx, pairName) in pairNames.enumerated() {
             lines.append("# Cross-band correlation for \(pairName) coherence")
             var header = "band"
-            for band in bands { header += "\t\(band.shortName)" }
+            for band in bands {
+                header += "\t\(band.shortName)"
+            }
             lines.append(header)
 
             for (b1, band1) in bands.enumerated() {
                 var line = band1.shortName
-                for b2 in 0..<bands.count {
+                for b2 in 0 ..< bands.count {
                     line += "\t\(String(format: "%.4f", crossBandCorrelation[b1][b2][pIdx]))"
                 }
                 lines.append(line)
@@ -409,7 +415,7 @@ public extension MultilevelSpectralResult {
             let wr = windowResults[w]
             var line = "\(wr.position)"
             for bf in wr.bandFeatures {
-                for p in 0..<6 {
+                for p in 0 ..< 6 {
                     line += "\t\(String(format: "%.4f", bf.coherence[p]))"
                 }
                 line += "\t\(String(format: "%.4f", bf.entropy))"
@@ -440,7 +446,7 @@ public extension MultilevelSpectralResult {
             let (pLo, pHi) = band.periodRange
             let periodStr = "\(String(format: "%.0f", pLo))-\(pHi.isInfinite ? "inf" : String(format: "%.0f", pHi))"
             var line = "\(band.shortName) (\(periodStr))".padding(toLength: 14, withPad: " ", startingAt: 0)
-            for p in 0..<6 {
+            for p in 0 ..< 6 {
                 let v = avgBandCoherence[bIdx][p]
                 line += String(format: "  %6.4f", v)
             }
@@ -459,8 +465,8 @@ public extension MultilevelSpectralResult {
         for (pIdx, pairName) in pairNames.enumerated() {
             // Find strongest cross-band correlations (excluding self and broadband)
             var correlations: [(String, Float)] = []
-            for b1 in 0..<(bands.count - 1) {  // exclude broadband
-                for b2 in (b1+1)..<(bands.count - 1) {
+            for b1 in 0 ..< (bands.count - 1) { // exclude broadband
+                for b2 in (b1 + 1) ..< (bands.count - 1) {
                     let r = crossBandCorrelation[b1][b2][pIdx]
                     correlations.append(("\(bands[b1].shortName)-\(bands[b2].shortName)", r))
                 }
@@ -474,7 +480,7 @@ public extension MultilevelSpectralResult {
         // Band-specific biological interpretations
         print("\n--- Biological Interpretation ---")
         for (bIdx, band) in bands.enumerated() {
-            if band.shortName == "B5" { continue }  // skip broadband summary
+            if band.shortName == "B5" { continue } // skip broadband summary
             let coh = avgBandCoherence[bIdx]
             let maxIdx = coh.enumerated().max(by: { $0.element < $1.element })!.offset
             let maxVal = coh[maxIdx]
@@ -482,7 +488,7 @@ public extension MultilevelSpectralResult {
             var interpretation = ""
             switch band.shortName {
             case "B0":
-                if coh[0] > coh[1] && coh[0] > 0.1 {
+                if coh[0] > coh[1], coh[0] > 0.1 {
                     interpretation = "A-T dominance at long range → AT-rich domain structure"
                 } else if coh[5] > 0.1 {
                     interpretation = "G-C coupling at long range → isochore/GC-content domains"

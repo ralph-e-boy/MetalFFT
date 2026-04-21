@@ -13,12 +13,12 @@ public enum WindowType {
 
     public func coefficients(_ size: Int) -> [Float] {
         switch self {
-        case .hann:              return Window.hann(size)
-        case .hamming:           return Window.hamming(size)
-        case .blackman:          return Window.blackman(size)
-        case .flatTop:           return Window.flatTop(size)
-        case .kaiser(let beta):  return Window.kaiser(size, beta: beta)
-        case .rectangular:       return [Float](repeating: 1, count: size)
+        case .hann: Window.hann(size)
+        case .hamming: Window.hamming(size)
+        case .blackman: Window.blackman(size)
+        case .flatTop: Window.flatTop(size)
+        case let .kaiser(beta): Window.kaiser(size, beta: beta)
+        case .rectangular: [Float](repeating: 1, count: size)
         }
     }
 }
@@ -27,7 +27,6 @@ public enum WindowType {
 
 /// Windowing functions and application helpers.
 public enum Window {
-
     // MARK: - Window Generators
 
     public static func hann(_ size: Int) -> [Float] {
@@ -57,7 +56,7 @@ public enum Window {
         let a3: Float = 0.083578947
         let a4: Float = 0.006947368
         let n = Float(size)
-        return (0..<size).map { k in
+        return (0 ..< size).map { k in
             let x = Float(k) / n
             return a0
                 - a1 * cos(2 * .pi * x)
@@ -71,7 +70,7 @@ public enum Window {
     public static func kaiser(_ size: Int, beta: Double = 6.0) -> [Float] {
         let halfN = Double(size - 1) / 2.0
         let i0Beta = besselI0(beta)
-        return (0..<size).map { k in
+        return (0 ..< size).map { k in
             let x = (Double(k) - halfN) / halfN
             return Float(besselI0(beta * sqrt(max(0, 1 - x * x))) / i0Beta)
         }
@@ -103,7 +102,7 @@ public enum Window {
         var result = 1.0
         var term = 1.0
         let halfX = x / 2.0
-        for k in 1...30 {
+        for k in 1 ... 30 {
             term *= (halfX * halfX) / Double(k * k)
             result += term
             if term < 1e-12 * result { break }

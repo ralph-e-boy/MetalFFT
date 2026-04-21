@@ -57,9 +57,11 @@ print("  Center range:     \(params.centerRange) m")
 if runFused {
     print("  Mode:             FUSED vs UNFUSED comparison")
 }
+
 if runPrecision {
     print("  Mode:             FP16 PRECISION COMPARISON")
 }
+
 print()
 
 // --- Generate point targets ---
@@ -69,11 +71,11 @@ let simulator = SARSimulator(params: params, targets: targets)
 let simStart = CFAbsoluteTimeGetCurrent()
 simulator.simulate()
 let simTime = CFAbsoluteTimeGetCurrent() - simStart
-targets = simulator.targets  // Update with computed bin positions
+targets = simulator.targets // Update with computed bin positions
 print(String(format: "  Simulation time: %.2f seconds", simTime))
 print()
 
-// --- Generate chirp reference ---
+/// --- Generate chirp reference ---
 let chirpRef = simulator.generateChirpReference()
 
 // --- RDA Processing ---
@@ -161,7 +163,7 @@ do {
         // L2 relative error
         var diffSqSum: Double = 0
         var refSqSum: Double = 0
-        for i in 0..<focusedImage.count {
+        for i in 0 ..< focusedImage.count {
             let dx = Double(fusedImage[i].x - focusedImage[i].x)
             let dy = Double(fusedImage[i].y - focusedImage[i].y)
             diffSqSum += dx * dx + dy * dy
@@ -184,7 +186,7 @@ do {
         print("  Per-target SNR comparison:")
         print("  Target    Unfused SNR    Fused SNR    Delta")
         print("  " + String(repeating: "-", count: 50))
-        for i in 0..<targetMetrics.count {
+        for i in 0 ..< targetMetrics.count {
             let snrU = targetMetrics[i].snr
             let snrF = fusedTargetMetrics[i].snr
             let delta = snrF - snrU

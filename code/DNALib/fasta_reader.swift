@@ -6,8 +6,10 @@ import Foundation
 
 public struct FASTASequence {
     public let header: String
-    public let sequence: [UInt8]  // 0=A, 1=T, 2=G, 3=C
-    public var length: Int { sequence.count }
+    public let sequence: [UInt8] // 0=A, 1=T, 2=G, 3=C
+    public var length: Int {
+        sequence.count
+    }
 
     public init(header: String, sequence: [UInt8]) {
         self.header = header
@@ -22,9 +24,9 @@ public enum FASTAError: Error, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case .fileNotFound(let path): return "FASTA file not found: \(path)"
-        case .emptySequence: return "No valid nucleotide bases found in FASTA file"
-        case .readError(let msg): return "FASTA read error: \(msg)"
+        case let .fileNotFound(path): "FASTA file not found: \(path)"
+        case .emptySequence: "No valid nucleotide bases found in FASTA file"
+        case let .readError(msg): "FASTA read error: \(msg)"
         }
     }
 }
@@ -56,7 +58,7 @@ public func readFASTA(path: String) throws -> [FASTASequence] {
                 case "T", "t": currentBases.append(1)
                 case "G", "g": currentBases.append(2)
                 case "C", "c": currentBases.append(3)
-                case "N", "n": currentBases.append(4)  // Unknown base
+                case "N", "n": currentBases.append(4) // Unknown base
                 default: break
                 }
             }
@@ -80,20 +82,20 @@ public func readFASTA(path: String) throws -> [FASTASequence] {
 
 public struct SyntheticDNA {
     public static func random(length: Int) -> [UInt8] {
-        (0..<length).map { _ in UInt8.random(in: 0...3) }
+        (0 ..< length).map { _ in UInt8.random(in: 0 ... 3) }
     }
 
     public static func withCodingRegion(totalLength: Int, codingStart: Int, codingLength: Int) -> [UInt8] {
         var seq = random(length: totalLength)
         let codons: [[UInt8]] = [
-            [0, 1, 2],  // ATG
-            [2, 0, 1],  // GAT
-            [3, 1, 0],  // CTA
-            [0, 2, 3],  // AGC
+            [0, 1, 2], // ATG
+            [2, 0, 1], // GAT
+            [3, 1, 0], // CTA
+            [0, 2, 3] // AGC
         ]
         for i in stride(from: 0, to: codingLength, by: 3) {
             let codon = codons[(i / 3) % codons.count]
-            for j in 0..<min(3, codingLength - i) {
+            for j in 0 ..< min(3, codingLength - i) {
                 let pos = codingStart + i + j
                 if pos < totalLength {
                     seq[pos] = codon[j]
@@ -106,7 +108,7 @@ public struct SyntheticDNA {
     public static func withTandemRepeat(totalLength: Int, repeatStart: Int, repeatLength: Int, period: Int) -> [UInt8] {
         var seq = random(length: totalLength)
         let motif = random(length: period)
-        for i in 0..<repeatLength {
+        for i in 0 ..< repeatLength {
             let pos = repeatStart + i
             if pos < totalLength {
                 seq[pos] = motif[i % period]
@@ -123,7 +125,7 @@ public func writeFASTA(sequences: [FASTASequence], path: String) throws {
         output += ">\(seq.header)\n"
         for i in stride(from: 0, to: seq.sequence.count, by: 80) {
             let end = min(i + 80, seq.sequence.count)
-            let line = seq.sequence[i..<end].map { nucleotides[Int($0)] }
+            let line = seq.sequence[i ..< end].map { nucleotides[Int($0)] }
             output += String(line) + "\n"
         }
     }

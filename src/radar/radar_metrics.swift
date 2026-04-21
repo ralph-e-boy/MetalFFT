@@ -23,21 +23,21 @@ struct TargetMetrics {
     let measuredRangeBin: Int
     let measuredAzimuthBin: Int
     let peakMagnitude: Float
-    let pslrRange: Float    // dB
-    let pslrAzimuth: Float  // dB
-    let islrRange: Float    // dB
-    let islrAzimuth: Float  // dB
-    let snr: Float          // dB
-    let resolution3dBRange: Float    // bins
-    let resolution3dBAzimuth: Float  // bins
+    let pslrRange: Float // dB
+    let pslrAzimuth: Float // dB
+    let islrRange: Float // dB
+    let islrAzimuth: Float // dB
+    let snr: Float // dB
+    let resolution3dBRange: Float // bins
+    let resolution3dBAzimuth: Float // bins
 }
 
 class RadarMetrics {
     let nRange: Int
     let nAzimuth: Int
-    let image: [SIMD2<Float>]  // Complex focused image (nAzimuth x nRange)
+    let image: [SIMD2<Float>] // Complex focused image (nAzimuth x nRange)
 
-    // Magnitude-squared image
+    /// Magnitude-squared image
     let magImage: [Float]
 
     init(image: [SIMD2<Float>], nRange: Int, nAzimuth: Int) {
@@ -47,18 +47,19 @@ class RadarMetrics {
 
         // Compute magnitude-squared
         var mag = [Float](repeating: 0, count: image.count)
-        for i in 0..<image.count {
+        for i in 0 ..< image.count {
             mag[i] = image[i].x * image[i].x + image[i].y * image[i].y
         }
-        self.magImage = mag
+        magImage = mag
     }
 
-    // Measure metrics for a target near the expected position
+    /// Measure metrics for a target near the expected position
     func measureTarget(index: Int, expectedRange: Int, expectedAzimuth: Int,
                        searchRadius: Int = 20) -> TargetMetrics {
         // Find peak near expected position
         let (peakRg, peakAz, peakVal) = findPeak(
-            nearRange: expectedRange, nearAzimuth: expectedAzimuth, radius: searchRadius)
+            nearRange: expectedRange, nearAzimuth: expectedAzimuth, radius: searchRadius
+        )
 
         // Extract range and azimuth cuts through the peak
         let rangeCut = extractRangeCut(azimuthBin: peakAz)
@@ -88,7 +89,7 @@ class RadarMetrics {
         )
     }
 
-    // Find the magnitude peak near a given position
+    /// Find the magnitude peak near a given position
     private func findPeak(nearRange: Int, nearAzimuth: Int, radius: Int)
         -> (rangeBin: Int, azimuthBin: Int, magnitude: Float) {
         var bestRg = nearRange
@@ -100,8 +101,8 @@ class RadarMetrics {
         let azStart = max(0, nearAzimuth - radius)
         let azEnd = min(nAzimuth - 1, nearAzimuth + radius)
 
-        for az in azStart...azEnd {
-            for rg in rgStart...rgEnd {
+        for az in azStart ... azEnd {
+            for rg in rgStart ... rgEnd {
                 let val = magImage[az * nRange + rg]
                 if val > bestVal {
                     bestVal = val
@@ -114,25 +115,25 @@ class RadarMetrics {
         return (bestRg, bestAz, bestVal)
     }
 
-    // Extract a range cut (row) at a given azimuth bin
+    /// Extract a range cut (row) at a given azimuth bin
     private func extractRangeCut(azimuthBin: Int) -> [Float] {
         var cut = [Float](repeating: 0, count: nRange)
-        for rg in 0..<nRange {
+        for rg in 0 ..< nRange {
             cut[rg] = magImage[azimuthBin * nRange + rg]
         }
         return cut
     }
 
-    // Extract an azimuth cut (column) at a given range bin
+    /// Extract an azimuth cut (column) at a given range bin
     private func extractAzimuthCut(rangeBin: Int) -> [Float] {
         var cut = [Float](repeating: 0, count: nAzimuth)
-        for az in 0..<nAzimuth {
+        for az in 0 ..< nAzimuth {
             cut[az] = magImage[az * nRange + rangeBin]
         }
         return cut
     }
 
-    // Measure PSLR, ISLR, and 3dB resolution on a 1D magnitude-squared cut
+    /// Measure PSLR, ISLR, and 3dB resolution on a 1D magnitude-squared cut
     private func measureCutMetrics(cut: [Float], peakBin: Int)
         -> (pslr: Float, islr: Float, resolution3dB: Float) {
         let n = cut.count
@@ -146,7 +147,7 @@ class RadarMetrics {
 
         // Find mainlobe extent: region around peak where magnitude stays within
         // a threshold (we use first nulls or -20 dB width for mainlobe definition)
-        let mainlobeThreshDB: Float = -20.0  // Define mainlobe as region above -20dB from peak
+        let mainlobeThreshDB: Float = -20.0 // Define mainlobe as region above -20dB from peak
 
         // Search left from peak
         var mainlobeLeft = peakBin
@@ -161,7 +162,7 @@ class RadarMetrics {
 
         // Search right from peak
         var mainlobeRight = peakBin
-        for i in (peakBin + 1)..<n {
+        for i in (peakBin + 1) ..< n {
             let valDB = cut[i] > 0 ? 10 * log10(cut[i]) - peakDB : -100
             if valDB < mainlobeThreshDB {
                 mainlobeRight = i - 1
@@ -172,7 +173,7 @@ class RadarMetrics {
 
         // Mainlobe energy
         var mainlobeEnergy: Float = 0
-        for i in mainlobeLeft...mainlobeRight {
+        for i in mainlobeLeft ... mainlobeRight {
             mainlobeEnergy += cut[i]
         }
 
@@ -184,7 +185,7 @@ class RadarMetrics {
         var sidelobeEnergy: Float = 0
         var maxSidelobe: Float = 0
 
-        for i in windowLeft...windowRight {
+        for i in windowLeft ... windowRight {
             if i < mainlobeLeft || i > mainlobeRight {
                 sidelobeEnergy += cut[i]
                 if cut[i] > maxSidelobe {
@@ -201,14 +202,14 @@ class RadarMetrics {
             ? 10 * log10(sidelobeEnergy / mainlobeEnergy) : -60
 
         // 3 dB resolution: width at -3 dB from peak
-        let thresh3dB = peakVal * 0.5  // -3 dB in power
+        let thresh3dB = peakVal * 0.5 // -3 dB in power
 
         // Find -3dB crossings by linear interpolation
-        var left3dB: Float = Float(peakBin)
+        var left3dB = Float(peakBin)
         for i in stride(from: peakBin, through: max(0, peakBin - windowHalf), by: -1) {
             if cut[i] < thresh3dB {
                 // Interpolate
-                if i + 1 < n && cut[i + 1] > thresh3dB {
+                if i + 1 < n, cut[i + 1] > thresh3dB {
                     let frac = (thresh3dB - cut[i]) / (cut[i + 1] - cut[i])
                     left3dB = Float(i) + frac
                 } else {
@@ -218,10 +219,10 @@ class RadarMetrics {
             }
         }
 
-        var right3dB: Float = Float(peakBin)
-        for i in peakBin..<min(n, peakBin + windowHalf) {
+        var right3dB = Float(peakBin)
+        for i in peakBin ..< min(n, peakBin + windowHalf) {
             if cut[i] < thresh3dB {
-                if i > 0 && cut[i - 1] > thresh3dB {
+                if i > 0, cut[i - 1] > thresh3dB {
                     let frac = (thresh3dB - cut[i]) / (cut[i - 1] - cut[i])
                     right3dB = Float(i) - frac
                 } else {
@@ -241,18 +242,18 @@ class RadarMetrics {
         // Sample noise from corners of the image (away from targets)
         let cornerSize = 64
         var noiseSum: Float = 0
-        var noiseCount: Int = 0
+        var noiseCount = 0
 
         // Top-left corner
-        for az in 0..<cornerSize {
-            for rg in 0..<cornerSize {
+        for az in 0 ..< cornerSize {
+            for rg in 0 ..< cornerSize {
                 noiseSum += magImage[az * nRange + rg]
                 noiseCount += 1
             }
         }
         // Bottom-right corner
-        for az in (nAzimuth - cornerSize)..<nAzimuth {
-            for rg in (nRange - cornerSize)..<nRange {
+        for az in (nAzimuth - cornerSize) ..< nAzimuth {
+            for rg in (nRange - cornerSize) ..< nRange {
                 noiseSum += magImage[az * nRange + rg]
                 noiseCount += 1
             }
@@ -265,7 +266,7 @@ class RadarMetrics {
         return 10 * log10(peakValue / noiseMean)
     }
 
-    // Print formatted report
+    /// Print formatted report
     static func printReport(metrics: [TargetMetrics], params: SARParameters) {
         print()
         print(String(repeating: "=", count: 80))

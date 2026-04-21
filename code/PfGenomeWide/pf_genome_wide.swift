@@ -1,5 +1,5 @@
-import Foundation
 import DNALib
+import Foundation
 
 // ============================================================================
 // Genome-Wide Pseudogene Reannotation Screen for P. falciparum
@@ -27,7 +27,7 @@ func main() throws {
         "\(execDir)/../data/genomes", "\(execDir)/../../data/genomes",
         "\(execDir)/../../../data/genomes", "\(execDir)/../../../../data/genomes",
         "\(execDir)/../../../../../data/genomes",
-        "\(FileManager.default.currentDirectoryPath)/data/genomes",
+        "\(FileManager.default.currentDirectoryPath)/data/genomes"
     ]
     var genomesDir = ""
     for dir in searchDirs {
@@ -122,7 +122,7 @@ func main() throws {
     }
 
     var windows = [WinData]()
-    for w in 0..<result.numWindows {
+    for w in 0 ..< result.numWindows {
         let gpos = w * hopSize
         let gend = gpos + N
 
@@ -150,11 +150,21 @@ func main() throws {
     func centroid(_ ws: [WinData]) -> (m: [Float], s: [Float]) {
         let n = Float(ws.count)
         var m = [Float](repeating: 0, count: nf)
-        for w in ws { for i in 0..<nf { m[i] += w.features[i] } }
-        for i in 0..<nf { m[i] /= n }
+        for w in ws {
+            for i in 0 ..< nf {
+                m[i] += w.features[i]
+            }
+        }
+        for i in 0 ..< nf {
+            m[i] /= n
+        }
         var v = [Float](repeating: 0, count: nf)
-        for w in ws { for i in 0..<nf { let d = w.features[i] - m[i]; v[i] += d*d } }
-        return (m, v.map { sqrt($0 / max(n-1, 1)) })
+        for w in ws {
+            for i in 0 ..< nf {
+                let d = w.features[i] - m[i]; v[i] += d * d
+            }
+        }
+        return (m, v.map { sqrt($0 / max(n - 1, 1)) })
     }
 
     let (codM, codS) = centroid(codingWins)
@@ -163,8 +173,8 @@ func main() throws {
 
     func rmsZ(_ f: [Float], _ m: [Float], _ s: [Float]) -> Float {
         var sum: Float = 0; var c: Float = 0
-        for i in 0..<min(f.count, m.count) {
-            if s[i] > 1e-6 { let z = (f[i] - m[i]) / s[i]; sum += z*z; c += 1 }
+        for i in 0 ..< min(f.count, m.count) {
+            if s[i] > 1e-6 { let z = (f[i] - m[i]) / s[i]; sum += z * z; c += 1 }
         }
         return c > 0 ? sqrt(sum / c) : 0
     }
@@ -179,7 +189,7 @@ func main() throws {
         let entry: GFFEntry
         let distCoding: Float
         let distIntergenic: Float
-        let codingLikeness: Float  // how much more like coding than intergenic
+        let codingLikeness: Float // how much more like coding than intergenic
         let gcContent: Float
         let maxOrfLen: Int
         let meanFeatures: [Float]
@@ -196,7 +206,7 @@ func main() throws {
         var overlappingFeatures = [[Float]]()
         for w in windows {
             let wEnd = w.gpos + N
-            if w.gpos < pgEnd && wEnd > pgStart {
+            if w.gpos < pgEnd, wEnd > pgStart {
                 overlappingFeatures.append(w.features)
             }
         }
@@ -204,27 +214,33 @@ func main() throws {
 
         // Mean feature vector
         var meanF = [Float](repeating: 0, count: nf)
-        for f in overlappingFeatures { for i in 0..<nf { meanF[i] += f[i] } }
-        for i in 0..<nf { meanF[i] /= Float(overlappingFeatures.count) }
+        for f in overlappingFeatures {
+            for i in 0 ..< nf {
+                meanF[i] += f[i]
+            }
+        }
+        for i in 0 ..< nf {
+            meanF[i] /= Float(overlappingFeatures.count)
+        }
 
         let dCod = rmsZ(meanF, codM, codS)
         let dInt = rmsZ(meanF, intM, intS)
-        let codingLikeness = dInt - dCod  // positive = more like coding
+        let codingLikeness = dInt - dCod // positive = more like coding
 
         // GC content
-        let seqSlice = Array(allDNA[pgStart..<min(pgEnd, allDNA.count)])
-        let gc = Float(seqSlice.filter { $0 == 2 || $0 == 3 }.count) / Float(seqSlice.count) * 100
+        let seqSlice = Array(allDNA[pgStart ..< min(pgEnd, allDNA.count)])
+        let gc = Float(seqSlice.count(where: { $0 == 2 || $0 == 3 })) / Float(seqSlice.count) * 100
 
         // ORF scan
-        let dnaStr = seqSlice.map { ["A","T","G","C"][$0 <= 3 ? Int($0) : 0] }.joined()
+        let dnaStr = seqSlice.map { ["A", "T", "G", "C"][$0 <= 3 ? Int($0) : 0] }.joined()
         var maxOrf = 0
-        for frame in 0..<3 {
+        for frame in 0 ..< 3 {
             var orfStart = -1; var i = frame
             while i + 2 < dnaStr.count {
                 let idx = dnaStr.index(dnaStr.startIndex, offsetBy: i)
-                let codon = String(dnaStr[idx..<dnaStr.index(idx, offsetBy: 3)])
-                if codon == "ATG" && orfStart < 0 { orfStart = i }
-                if (codon == "TAA" || codon == "TAG" || codon == "TGA") && orfStart >= 0 {
+                let codon = String(dnaStr[idx ..< dnaStr.index(idx, offsetBy: 3)])
+                if codon == "ATG", orfStart < 0 { orfStart = i }
+                if codon == "TAA" || codon == "TAG" || codon == "TGA", orfStart >= 0 {
                     maxOrf = max(maxOrf, (i + 3 - orfStart) / 3)
                     orfStart = -1
                 }
@@ -254,8 +270,8 @@ func main() throws {
         let size = pg.entry.end - pg.entry.start + 1
         let marker = pg.codingLikeness > 0 ? " ***" : ""
         print(String(format: "  %2d   %-24s %@  %5d  %5.1f%%  %4d aa  %+6.2f  %5.2f  %5.2f%@",
-              i + 1, pg.entry.name, String(chr), size, pg.gcContent, pg.maxOrfLen,
-              pg.codingLikeness, pg.distCoding, pg.distIntergenic, marker))
+                     i + 1, pg.entry.name, String(chr), size, pg.gcContent, pg.maxOrfLen,
+                     pg.codingLikeness, pg.distCoding, pg.distIntergenic, marker))
     }
 
     // Highlight candidates
@@ -265,7 +281,7 @@ func main() throws {
     print(String(repeating: "=", count: 72))
 
     for (i, pg) in candidates.enumerated() {
-        print("\n  Candidate #\(i+1): \(pg.entry.name)")
+        print("\n  Candidate #\(i + 1): \(pg.entry.name)")
         print("    \(pg.entry.seqid):\(pg.entry.start)-\(pg.entry.end) (\(pg.entry.end - pg.entry.start + 1) bp)")
         print("    GC content: \(String(format: "%.1f%%", pg.gcContent)) (genome avg: 19.4%)")
         print("    Largest ORF: \(pg.maxOrfLen) codons")
@@ -276,9 +292,9 @@ func main() throws {
         // Top spectral deviations from intergenic
         var devs = [(String, Float)]()
         for (bIdx, band) in bands.enumerated() {
-            for pIdx in 0..<6 {
+            for pIdx in 0 ..< 6 {
                 let idx = bIdx * 6 + pIdx
-                if idx < pg.meanFeatures.count && idx < intS.count && intS[idx] > 1e-6 {
+                if idx < pg.meanFeatures.count, idx < intS.count, intS[idx] > 1e-6 {
                     let z = (pg.meanFeatures[idx] - intM[idx]) / intS[idx]
                     devs.append(("\(band.shortName)_\(pairNames[pIdx])", z))
                 }
@@ -293,7 +309,7 @@ func main() throws {
         for e in gffEntries where e.type == "CDS" || e.type == "gene" {
             guard e.seqid == pg.entry.seqid else { continue }
             let dist = min(abs(e.start - pg.entry.end), abs(pg.entry.start - e.end))
-            if dist < 10000 && e.type == "CDS" {
+            if dist < 10000, e.type == "CDS" {
                 let desc = e.product.isEmpty ? e.name : String(e.product.prefix(50))
                 nearby.append("\(desc) (\(dist)bp)")
             }

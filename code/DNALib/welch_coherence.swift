@@ -1,5 +1,5 @@
-import Metal
 import Foundation
+import Metal
 
 // ============================================================================
 // Welch's Method for DNA Cross-Spectral Coherence
@@ -31,24 +31,24 @@ public struct WelchCoherenceResult {
     // Layout: avgCrossSpectra[pair * numFreqs + k]
     public let avgCrossSpectra: [SIMD2<Float>]
 
-    // Welch coherence: [6][numFreqs]
-    // gamma^2_XY(k) = |<S_XY>|^2 / (<S_XX> * <S_YY>)
+    /// Welch coherence: [6][numFreqs]
+    /// gamma^2_XY(k) = |<S_XY>|^2 / (<S_XX> * <S_YY>)
     public let coherence: [Float]
 
-    // Phase spectrum: [6][numFreqs]
-    // arg(<S_XY(k)>) in radians
+    /// Phase spectrum: [6][numFreqs]
+    /// arg(<S_XY(k)>) in radians
     public let phase: [Float]
 
-    // Spectral entropy: [numFreqs]
-    // H(k) = -sum p_X(k) log p_X(k) where p_X = P_X / P_total
+    /// Spectral entropy: [numFreqs]
+    /// H(k) = -sum p_X(k) log p_X(k) where p_X = P_X / P_total
     public let spectralEntropy: [Float]
 
-    // Cross-spectral matrix eigenvalues: [4][numFreqs]
-    // Sorted descending. Layout: eigenvalues[eigIdx * numFreqs + k]
+    /// Cross-spectral matrix eigenvalues: [4][numFreqs]
+    /// Sorted descending. Layout: eigenvalues[eigIdx * numFreqs + k]
     public let eigenvalues: [Float]
 
-    // Condition number: [numFreqs]
-    // lambda_max / lambda_min
+    /// Condition number: [numFreqs]
+    /// lambda_max / lambda_min
     public let conditionNumber: [Float]
 
     public init(N: Int, numFreqs: Int, numSegments: Int,
@@ -69,7 +69,6 @@ public struct WelchCoherenceResult {
 }
 
 public extension DNASpectralAnalyzer {
-
     /// Compute Welch's coherence using overlapping segments.
     /// - Parameters:
     ///   - dna: Encoded DNA (0=A, 1=T, 2=G, 3=C)
@@ -82,7 +81,7 @@ public extension DNASpectralAnalyzer {
     ) -> WelchCoherenceResult {
         let N = segmentSize
         assert(N == 1024, "Only N=1024 supported")
-        let numFreqs = N / 2 + 1  // 513 frequency bins
+        let numFreqs = N / 2 + 1 // 513 frequency bins
         let hopSize = Int(Float(N) * (1.0 - overlap))
         let numSegments = (dna.count - N) / hopSize + 1
 
@@ -102,17 +101,17 @@ public extension DNASpectralAnalyzer {
             let batchCount = batchEnd - batchStart
 
             // Extract batch of segments
-            for s in 0..<batchCount {
+            for s in 0 ..< batchCount {
                 let segIdx = batchStart + s
                 let offset = segIdx * hopSize
-                let segmentDNA = Array(dna[offset..<(offset + N)])
+                let segmentDNA = Array(dna[offset ..< (offset + N)])
 
                 // GPU: 4-channel FFT
                 let spectra = runFFT(dna: segmentDNA)
                 // spectra layout: [U_A(0..N-1), U_T(0..N-1), U_G(0..N-1), U_C(0..N-1)]
 
                 // CPU: compute auto-spectra and cross-spectra for this segment
-                for k in 0..<numFreqs {
+                for k in 0 ..< numFreqs {
                     let ua = spectra[k]
                     let ut = spectra[N + k]
                     let ug = spectra[2 * N + k]
@@ -132,7 +131,7 @@ public extension DNASpectralAnalyzer {
                     // Cross-spectra: S_XY = U_X * conj(U_Y)
                     // Pairs: AT=0, AG=1, AC=2, TG=3, TC=4, GC=5
                     let channels: [SIMD2<Float>] = [ua, ut, ug, uc]
-                    let pairs: [(Int, Int)] = [(0,1), (0,2), (0,3), (1,2), (1,3), (2,3)]
+                    let pairs: [(Int, Int)] = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
 
                     for (pairIdx, (i, j)) in pairs.enumerated() {
                         let x = channels[i]
@@ -156,12 +155,12 @@ public extension DNASpectralAnalyzer {
         let invK = 1.0 / Double(numSegments)
 
         var avgAutoSpectra = [Float](repeating: 0, count: 4 * numFreqs)
-        for i in 0..<(4 * numFreqs) {
+        for i in 0 ..< (4 * numFreqs) {
             avgAutoSpectra[i] = Float(sumAutoSpectra[i] * invK)
         }
 
         var avgCrossSpectra = [SIMD2<Float>](repeating: .zero, count: 6 * numFreqs)
-        for i in 0..<(6 * numFreqs) {
+        for i in 0 ..< (6 * numFreqs) {
             avgCrossSpectra[i] = SIMD2<Float>(
                 Float(sumCrossReal[i] * invK),
                 Float(sumCrossImag[i] * invK)
@@ -169,12 +168,12 @@ public extension DNASpectralAnalyzer {
         }
 
         // Compute coherence: gamma^2_XY(k) = |<S_XY>|^2 / (<S_XX> * <S_YY>)
-        let pairs: [(Int, Int)] = [(0,1), (0,2), (0,3), (1,2), (1,3), (2,3)]
+        let pairs: [(Int, Int)] = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
         var coherence = [Float](repeating: 0, count: 6 * numFreqs)
         var phase = [Float](repeating: 0, count: 6 * numFreqs)
 
         for (pairIdx, (chX, chY)) in pairs.enumerated() {
-            for k in 0..<numFreqs {
+            for k in 0 ..< numFreqs {
                 let sxy = avgCrossSpectra[pairIdx * numFreqs + k]
                 let sxx = avgAutoSpectra[chX * numFreqs + k]
                 let syy = avgAutoSpectra[chY * numFreqs + k]
@@ -190,7 +189,7 @@ public extension DNASpectralAnalyzer {
 
         // Spectral entropy: H(k) = -sum p_X(k) log p_X(k)
         var spectralEntropy = [Float](repeating: 0, count: numFreqs)
-        for k in 0..<numFreqs {
+        for k in 0 ..< numFreqs {
             let pa = avgAutoSpectra[0 * numFreqs + k]
             let pt = avgAutoSpectra[1 * numFreqs + k]
             let pg = avgAutoSpectra[2 * numFreqs + k]
@@ -214,7 +213,7 @@ public extension DNASpectralAnalyzer {
         var eigenvalues = [Float](repeating: 0, count: 4 * numFreqs)
         var conditionNumber = [Float](repeating: 0, count: numFreqs)
 
-        for k in 0..<numFreqs {
+        for k in 0 ..< numFreqs {
             // Build 4x4 Hermitian matrix (real part and imaginary part)
             // Diagonal: auto-spectra (real)
             // Off-diagonal: cross-spectra (complex)
@@ -222,7 +221,7 @@ public extension DNASpectralAnalyzer {
             var matImag = [[Float]](repeating: [Float](repeating: 0, count: 4), count: 4)
 
             // Diagonal
-            for ch in 0..<4 {
+            for ch in 0 ..< 4 {
                 matReal[ch][ch] = avgAutoSpectra[ch * numFreqs + k]
             }
 
@@ -234,14 +233,14 @@ public extension DNASpectralAnalyzer {
                 (0, 3, 2), // A-C, pairIdx 2
                 (1, 2, 3), // T-G, pairIdx 3
                 (1, 3, 4), // T-C, pairIdx 4
-                (2, 3, 5), // G-C, pairIdx 5
+                (2, 3, 5) // G-C, pairIdx 5
             ]
 
             for (i, j, pIdx) in pairMap {
                 let s = avgCrossSpectra[pIdx * numFreqs + k]
                 matReal[i][j] = s.x
                 matImag[i][j] = s.y
-                matReal[j][i] = s.x       // Hermitian: M[j][i] = conj(M[i][j])
+                matReal[j][i] = s.x // Hermitian: M[j][i] = conj(M[i][j])
                 matImag[j][i] = -s.y
             }
 
@@ -278,10 +277,10 @@ public extension DNASpectralAnalyzer {
             // For a 4x4 real symmetric matrix, we can use the Jacobi method directly
             // on the matrix of magnitudes |S_XY|. This gives a structure measure.
             var magMat = [[Float]](repeating: [Float](repeating: 0, count: 4), count: 4)
-            for i in 0..<4 {
-                for j in 0..<4 {
+            for i in 0 ..< 4 {
+                for j in 0 ..< 4 {
                     if i == j {
-                        magMat[i][j] = matReal[i][j]  // auto-spectra are real
+                        magMat[i][j] = matReal[i][j] // auto-spectra are real
                     } else {
                         // Use the real cross-spectral matrix (Hermitian -> take real part
                         // of the full matrix for Jacobi on the real symmetric part)
@@ -296,7 +295,7 @@ public extension DNASpectralAnalyzer {
 
             let eigs = symmetricEigenvalues4x4(magMat)
             let sorted = eigs.sorted(by: >)
-            for e in 0..<4 {
+            for e in 0 ..< 4 {
                 eigenvalues[e * numFreqs + k] = sorted[e]
             }
             let minEig = sorted[3]
@@ -328,12 +327,12 @@ public func symmetricEigenvalues4x4(_ input: [[Float]]) -> [Float] {
     let n = 4
     let maxIter = 100
 
-    for _ in 0..<maxIter {
+    for _ in 0 ..< maxIter {
         // Find largest off-diagonal element
         var maxVal: Float = 0
         var p = 0, q = 1
-        for i in 0..<n {
-            for j in (i+1)..<n {
+        for i in 0 ..< n {
+            for j in (i + 1) ..< n {
                 if abs(a[i][j]) > maxVal {
                     maxVal = abs(a[i][j])
                     p = i; q = j
@@ -347,19 +346,18 @@ public func symmetricEigenvalues4x4(_ input: [[Float]]) -> [Float] {
         let aqq = a[q][q]
         let apq = a[p][q]
 
-        let theta: Float
-        if abs(app - aqq) < 1e-30 {
-            theta = Float.pi / 4
+        let theta: Float = if abs(app - aqq) < 1e-30 {
+            Float.pi / 4
         } else {
-            theta = 0.5 * atan(2 * apq / (app - aqq))
+            0.5 * atan(2 * apq / (app - aqq))
         }
         let c = cos(theta)
         let s = sin(theta)
 
         // Apply rotation
         var newA = a
-        for i in 0..<n {
-            if i != p && i != q {
+        for i in 0 ..< n {
+            if i != p, i != q {
                 newA[i][p] = c * a[i][p] + s * a[i][q]
                 newA[p][i] = newA[i][p]
                 newA[i][q] = -s * a[i][p] + c * a[i][q]
@@ -374,7 +372,7 @@ public func symmetricEigenvalues4x4(_ input: [[Float]]) -> [Float] {
         a = newA
     }
 
-    return (0..<n).map { a[$0][$0] }
+    return (0 ..< n).map { a[$0][$0] }
 }
 
 // ============================================================================
@@ -382,28 +380,31 @@ public func symmetricEigenvalues4x4(_ input: [[Float]]) -> [Float] {
 // ============================================================================
 
 public extension WelchCoherenceResult {
-
     /// Write full coherence + phase + entropy TSV
     func writeCoherenceTSV(path: String) throws {
         let pairNames = ["AT", "AG", "AC", "TG", "TC", "GC"]
         var header = "frequency\tperiod_bp"
-        for name in pairNames { header += "\tcoh_\(name)" }
-        for name in pairNames { header += "\tphase_\(name)" }
+        for name in pairNames {
+            header += "\tcoh_\(name)"
+        }
+        for name in pairNames {
+            header += "\tphase_\(name)"
+        }
         header += "\tspectral_entropy\tcondition_number"
         header += "\teig_0\teig_1\teig_2\teig_3"
         header += "\tP_A\tP_T\tP_G\tP_C"
 
         var lines = [header]
-        for k in 0..<numFreqs {
+        for k in 0 ..< numFreqs {
             let period = k > 0 ? String(format: "%.4f", Float(N) / Float(k)) : "inf"
             var line = "\(k)\t\(period)"
 
             // Coherence
-            for p in 0..<6 {
+            for p in 0 ..< 6 {
                 line += "\t\(String(format: "%.6f", coherence[p * numFreqs + k]))"
             }
             // Phase
-            for p in 0..<6 {
+            for p in 0 ..< 6 {
                 line += "\t\(String(format: "%.6f", phase[p * numFreqs + k]))"
             }
             // Entropy
@@ -412,11 +413,11 @@ public extension WelchCoherenceResult {
             let cn = conditionNumber[k]
             line += "\t\(cn.isFinite ? String(format: "%.4f", cn) : "inf")"
             // Eigenvalues
-            for e in 0..<4 {
+            for e in 0 ..< 4 {
                 line += "\t\(String(format: "%.4f", eigenvalues[e * numFreqs + k]))"
             }
             // Auto-spectra
-            for ch in 0..<4 {
+            for ch in 0 ..< 4 {
                 line += "\t\(String(format: "%.4f", avgAutoSpectra[ch * numFreqs + k]))"
             }
 

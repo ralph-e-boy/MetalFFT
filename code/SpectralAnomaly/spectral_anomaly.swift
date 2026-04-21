@@ -1,5 +1,5 @@
-import Foundation
 import DNALib
+import Foundation
 
 // ============================================================================
 // Spectral Anomaly Detection in S. cerevisiae
@@ -101,22 +101,21 @@ func classifyWindow(windowStart: Int, windowEnd: Int,
     let fraction = Float(dominant.value) / Float(windowLen)
 
     // Simplify categories
-    let category: String
-    switch dominant.key {
-    case "CDS": category = "CDS"
-    case "tRNA": category = "tRNA"
-    case "rRNA": category = "rRNA"
+    let category: String = switch dominant.key {
+    case "CDS": "CDS"
+    case "tRNA": "tRNA"
+    case "rRNA": "rRNA"
     case "snoRNA", "snRNA", "ncRNA", "antisense_RNA",
          "telomerase_RNA", "RNase_P_RNA", "RNase_MRP_RNA", "SRP_RNA":
-        category = "ncRNA"
-    case "long_terminal_repeat": category = "LTR"
-    case "mobile_genetic_element": category = "transposon"
-    case "origin_of_replication": category = "ARS"
-    case "centromere": category = "centromere"
-    case "telomere": category = "telomere"
-    case "regulatory_region": category = "regulatory"
-    case "pseudogene": category = "pseudogene"
-    default: category = dominant.key
+        "ncRNA"
+    case "long_terminal_repeat": "LTR"
+    case "mobile_genetic_element": "transposon"
+    case "origin_of_replication": "ARS"
+    case "centromere": "centromere"
+    case "telomere": "telomere"
+    case "regulatory_region": "regulatory"
+    case "pseudogene": "pseudogene"
+    default: dominant.key
     }
 
     return (category, fraction)
@@ -135,7 +134,7 @@ func main() throws {
         "\(execDir)/../data/genomes", "\(execDir)/../../data/genomes",
         "\(execDir)/../../../data/genomes", "\(execDir)/../../../../data/genomes",
         "\(execDir)/../../../../../data/genomes",
-        "\(FileManager.default.currentDirectoryPath)/data/genomes",
+        "\(FileManager.default.currentDirectoryPath)/data/genomes"
     ]
     var genomesDir = ""
     for dir in searchDirs {
@@ -163,7 +162,9 @@ func main() throws {
     print("\n2. Parsing annotations...")
     let features = try parseAllFeatures(gffPath: "\(genomesDir)/s_cerevisiae_R64.gff")
     var typeCounts = [String: Int]()
-    for f in features { typeCounts[f.featureType, default: 0] += 1 }
+    for f in features {
+        typeCounts[f.featureType, default: 0] += 1
+    }
     for (t, c) in typeCounts.sorted(by: { $0.value > $1.value }) {
         print("   \(t): \(c)")
     }
@@ -173,14 +174,14 @@ func main() throws {
     let result = analyzer.computeMultilevelSpectral(dna: allDNA)
     let bands = standardGenomicBands
     let pairNames = ["AT", "AG", "AC", "TG", "TC", "GC"]
-    let numFeatures = bands.count * 6  // 30 features per window
+    let numFeatures = bands.count * 6 // 30 features per window
 
     // 4. Extract feature vectors and classify windows
     print("\n4. Extracting feature vectors and classifying windows...")
 
     struct WindowData {
         let position: Int
-        let features: [Float]       // 30-dim vector
+        let features: [Float] // 30-dim vector
         let category: String
         let categoryFraction: Float
         let codingFraction: Float
@@ -190,7 +191,7 @@ func main() throws {
     let N = 1024
     let hopSize = 512
 
-    for w in 0..<result.numWindows {
+    for w in 0 ..< result.numWindows {
         let startPos = w * hopSize
         let endPos = startPos + N
 
@@ -203,7 +204,8 @@ func main() throws {
         // Classify by annotation
         let (cat, catFrac) = classifyWindow(
             windowStart: startPos, windowEnd: endPos,
-            annotations: features, seqOffsets: seqOffsets)
+            annotations: features, seqOffsets: seqOffsets
+        )
 
         // Compute coding fraction specifically
         var codingCount = 0
@@ -228,7 +230,9 @@ func main() throws {
 
     // Category counts
     var catCounts = [String: Int]()
-    for w in windows { catCounts[w.category, default: 0] += 1 }
+    for w in windows {
+        catCounts[w.category, default: 0] += 1
+    }
     print("   Window categories:")
     for (cat, count) in catCounts.sorted(by: { $0.value > $1.value }) {
         print("     \(cat): \(count) windows (\(String(format: "%.1f%%", Float(count) / Float(windows.count) * 100)))")
@@ -241,13 +245,17 @@ func main() throws {
         let n = Float(subset.count)
         var mean = [Float](repeating: 0, count: numFeatures)
         for w in subset {
-            for i in 0..<numFeatures { mean[i] += w.features[i] }
+            for i in 0 ..< numFeatures {
+                mean[i] += w.features[i]
+            }
         }
-        for i in 0..<numFeatures { mean[i] /= n }
+        for i in 0 ..< numFeatures {
+            mean[i] /= n
+        }
 
         var variance = [Float](repeating: 0, count: numFeatures)
         for w in subset {
-            for i in 0..<numFeatures {
+            for i in 0 ..< numFeatures {
                 let d = w.features[i] - mean[i]
                 variance[i] += d * d
             }
@@ -271,28 +279,28 @@ func main() throws {
     func normalizedDistance(_ features: [Float], _ mean: [Float], _ std: [Float]) -> Float {
         var sumSq: Float = 0
         var count: Float = 0
-        for i in 0..<features.count {
+        for i in 0 ..< features.count {
             if std[i] > 1e-6 {
                 let z = (features[i] - mean[i]) / std[i]
                 sumSq += z * z
                 count += 1
             }
         }
-        return count > 0 ? sqrt(sumSq / count) : 0  // RMS z-score
+        return count > 0 ? sqrt(sumSq / count) : 0 // RMS z-score
     }
 
     struct ScoredWindow {
         let data: WindowData
         let distCoding: Float
         let distIntergenic: Float
-        let anomalyScore: Float  // min distance to any centroid
+        let anomalyScore: Float // min distance to any centroid
     }
 
     var scored = windows.map { w -> ScoredWindow in
         let dc = normalizedDistance(w.features, codingMean, codingStd)
         let di = normalizedDistance(w.features, intergenicMean, intergenicStd)
         return ScoredWindow(data: w, distCoding: dc, distIntergenic: di,
-                           anomalyScore: min(dc, di))
+                            anomalyScore: min(dc, di))
     }
 
     scored.sort { $0.anomalyScore > $1.anomalyScore }
@@ -308,7 +316,9 @@ func main() throws {
     let topAnomalies = Array(scored.prefix(topN))
 
     var topCatCounts = [String: Int]()
-    for w in topAnomalies { topCatCounts[w.data.category, default: 0] += 1 }
+    for w in topAnomalies {
+        topCatCounts[w.data.category, default: 0] += 1
+    }
 
     print("\nTop \(topN) anomalous windows by category:")
     let totalWindows = Float(windows.count)
@@ -317,8 +327,8 @@ func main() throws {
         let pctInGenome = Float(catCounts[cat] ?? 0) / totalWindows * 100
         let enrichment = pctInTop / max(pctInGenome, 0.01)
         let enrichStr = enrichment > 2 ? " *** ENRICHED \(String(format: "%.1fx", enrichment))" :
-                        enrichment > 1.5 ? " ** enriched \(String(format: "%.1fx", enrichment))" :
-                        enrichment < 0.5 ? " (depleted)" : ""
+            enrichment > 1.5 ? " ** enriched \(String(format: "%.1fx", enrichment))" :
+            enrichment < 0.5 ? " (depleted)" : ""
         print("  \(cat.padding(toLength: 14, withPad: " ", startingAt: 0)) \(count) (\(String(format: "%.1f%%", pctInTop)) of anomalies vs \(String(format: "%.1f%%", pctInGenome)) of genome)\(enrichStr)")
     }
 
@@ -329,7 +339,7 @@ func main() throws {
     print(String(repeating: "=", count: 72))
 
     let categories = ["CDS", "intergenic", "tRNA", "ARS", "LTR", "transposon",
-                       "centromere", "telomere", "ncRNA", "regulatory"]
+                      "centromere", "telomere", "ncRNA", "regulatory"]
 
     // Header
     var profileHeader = "Category".padding(toLength: 14, withPad: " ", startingAt: 0) + "  N  "
@@ -349,9 +359,13 @@ func main() throws {
 
         var mean = [Float](repeating: 0, count: numFeatures)
         for w in catWindows {
-            for i in 0..<numFeatures { mean[i] += w.features[i] }
+            for i in 0 ..< numFeatures {
+                mean[i] += w.features[i]
+            }
         }
-        for i in 0..<numFeatures { mean[i] /= Float(catWindows.count) }
+        for i in 0 ..< numFeatures {
+            mean[i] /= Float(catWindows.count)
+        }
         categoryProfiles.append((cat, catWindows.count, mean))
     }
 
@@ -362,7 +376,7 @@ func main() throws {
         (0, 0, "B0_AT"), (2, 0, "B2_AT"), (2, 5, "B2_GC"),
         (3, 0, "B3_AT"), (3, 2, "B3_AC"), (3, 3, "B3_TG"),
         (4, 0, "B4_AT"), (4, 1, "B4_AG"), (4, 4, "B4_TC"),
-        (1, 5, "B1_GC"),
+        (1, 5, "B1_GC")
     ]
 
     var tableHeader = "Category".padding(toLength: 14, withPad: " ", startingAt: 0) + "  N     "
@@ -404,11 +418,11 @@ func main() throws {
 
         print("\n  \(cat) (\(catN) windows) vs CDS (\(cdsN) windows):")
 
-        var significantEffects = [(String, Float, Float, Float)]()  // name, d, catVal, cdsVal
+        var significantEffects = [(String, Float, Float, Float)]() // name, d, catVal, cdsVal
 
         for (bIdx, band) in bands.enumerated() {
             if band.shortName == "B5" { continue }
-            for pIdx in 0..<6 {
+            for pIdx in 0 ..< 6 {
                 let fIdx = bIdx * 6 + pIdx
 
                 let catVals = catWindows.map { $0.features[fIdx] }
@@ -418,11 +432,15 @@ func main() throws {
                 let cdsMeanV = cdsVals.reduce(0, +) / Float(cdsVals.count)
 
                 var catVar: Float = 0
-                for v in catVals { catVar += (v - catMeanV) * (v - catMeanV) }
+                for v in catVals {
+                    catVar += (v - catMeanV) * (v - catMeanV)
+                }
                 catVar /= Float(max(catVals.count - 1, 1))
 
                 var cdsVar: Float = 0
-                for v in cdsVals { cdsVar += (v - cdsMeanV) * (v - cdsMeanV) }
+                for v in cdsVals {
+                    cdsVar += (v - cdsMeanV) * (v - cdsMeanV)
+                }
                 cdsVar /= Float(max(cdsVals.count - 1, 1))
 
                 let pooledStd = sqrt((catVar + cdsVar) / 2)
@@ -453,7 +471,7 @@ func main() throws {
     var tsvLines = [String]()
     var tsvHeader = "category\tn_windows"
     for (bIdx, band) in bands.enumerated() {
-        for pIdx in 0..<6 {
+        for pIdx in 0 ..< 6 {
             tsvHeader += "\t\(band.shortName)_\(pairNames[pIdx])"
         }
     }

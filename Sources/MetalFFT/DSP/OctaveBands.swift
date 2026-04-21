@@ -4,7 +4,6 @@ import Accelerate
 
 /// Standard 1/3-octave band analysis (31 bands, ISO 266 center frequencies).
 public enum OctaveBands {
-
     /// ISO 266 nominal 1/3-octave center frequencies from 16 Hz to 16 kHz.
     public static let centerFrequencies: [Double] = [
         16, 20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250,
@@ -20,7 +19,7 @@ public enum OctaveBands {
         fftSize: Int
     ) -> [(center: Double, energy: Float)] {
         let freqPerBin = sampleRate / Double(fftSize)
-        let halfBand = pow(2.0, 1.0 / 6.0)   // ±1/6 octave around each center
+        let halfBand = pow(2.0, 1.0 / 6.0) // ±1/6 octave around each center
         return magnitudes.withUnsafeBufferPointer { ptr in
             centerFrequencies.map { center in
                 let lo = Int(max(0.0, (center / halfBand) / freqPerBin))

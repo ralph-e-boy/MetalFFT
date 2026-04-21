@@ -1,5 +1,5 @@
-import Metal
 import Foundation
+import Metal
 
 // MARK: - MetalFFT
 
@@ -8,7 +8,6 @@ import Foundation
 /// Input/output format: interleaved SIMD2<Float> where .x = real, .y = imaginary.
 /// Not thread-safe: serialize all calls on a single writer.
 public final class MetalFFT {
-
     // MARK: - Public
 
     public let size: Int
@@ -28,23 +27,23 @@ public final class MetalFFT {
     public init(size: Int) throws {
         let ctx = try MetalContext.shared()
         let desc = try FFTDescriptor(size: size)
-        self.context = ctx
-        self.descriptor = desc
+        context = ctx
+        descriptor = desc
         self.size = size
-        self.byteCount = size * MemoryLayout<SIMD2<Float>>.stride
+        byteCount = size * MemoryLayout<SIMD2<Float>>.stride
 
-        inputBuf  = try makeBuffer(ctx.device, length: byteCount)
+        inputBuf = try makeBuffer(ctx.device, length: byteCount)
         outputBuf = try makeBuffer(ctx.device, length: byteCount)
 
-        if case .fourStep(let n1, let n2, _, _, _, _) = desc.kind {
+        if case let .fourStep(n1, n2, _, _, _, _) = desc.kind {
             var n1v = UInt32(n1), n2v = UInt32(n2)
-            fourStepState = .fourStep(
-                tempA: try makeBuffer(ctx.device, length: byteCount),
-                tempB: try makeBuffer(ctx.device, length: byteCount),
-                tempC: try makeBuffer(ctx.device, length: byteCount),
-                tempD: try makeBuffer(ctx.device, length: byteCount),
-                n1Buf: try makeBuffer(ctx.device, uint32: &n1v),
-                n2Buf: try makeBuffer(ctx.device, uint32: &n2v)
+            fourStepState = try .fourStep(
+                tempA: makeBuffer(ctx.device, length: byteCount),
+                tempB: makeBuffer(ctx.device, length: byteCount),
+                tempC: makeBuffer(ctx.device, length: byteCount),
+                tempD: makeBuffer(ctx.device, length: byteCount),
+                n1Buf: makeBuffer(ctx.device, uint32: &n1v),
+                n2Buf: makeBuffer(ctx.device, uint32: &n2v)
             )
         } else {
             fourStepState = .singlePass
@@ -115,7 +114,7 @@ public final class MetalFFT {
         }
         let batchSize = input.count
         let totalBytes = byteCount * batchSize
-        let flatIn  = try makeBuffer(context.device, length: totalBytes)
+        let flatIn = try makeBuffer(context.device, length: totalBytes)
         let flatOut = try makeBuffer(context.device, length: totalBytes)
 
         for (i, el) in input.enumerated() {
@@ -126,7 +125,7 @@ public final class MetalFFT {
 
         try dispatchBatch(from: flatIn, to: flatOut, batchSize: batchSize)
 
-        return (0..<batchSize).map { i in
+        return (0 ..< batchSize).map { i in
             let ptr = (flatOut.contents() + i * byteCount)
                 .bindMemory(to: SIMD2<Float>.self, capacity: size)
             return Array(UnsafeBufferPointer(start: ptr, count: size))
@@ -137,7 +136,7 @@ public final class MetalFFT {
 
     private func dispatchSingle(from inBuf: MTLBuffer, to outBuf: MTLBuffer) throws {
         switch descriptor.kind {
-        case .singlePass(let kernelName, let threads):
+        case let .singlePass(kernelName, threads):
             guard let cb = context.queue.makeCommandBuffer() else {
                 throw FFTError.commandBufferFailed("makeCommandBuffer returned nil")
             }
@@ -145,7 +144,7 @@ public final class MetalFFT {
                 throw FFTError.commandBufferFailed("makeComputeCommandEncoder returned nil")
             }
             enc.setComputePipelineState(context.pipelines[kernelName]!)
-            enc.setBuffer(inBuf,  offset: 0, index: 0)
+            enc.setBuffer(inBuf, offset: 0, index: 0)
             enc.setBuffer(outBuf, offset: 0, index: 1)
             enc.dispatchThreadgroups(MTLSizeMake(1, 1, 1),
                                      threadsPerThreadgroup: MTLSizeMake(threads, 1, 1))
@@ -159,7 +158,7 @@ public final class MetalFFT {
 
     private func dispatchBatch(from inBuf: MTLBuffer, to outBuf: MTLBuffer, batchSize: Int) throws {
         switch descriptor.kind {
-        case .singlePass(let kernelName, let threads):
+        case let .singlePass(kernelName, threads):
             // For N=4096 batch, use the dedicated radix-8 Stockham kernel (138 GFLOPS vs 113 GFLOPS).
             let (kName, kThreads): (String, Int) = size == 4096
                 ? ("fft_4096_batched", 512)
@@ -171,7 +170,7 @@ public final class MetalFFT {
                 throw FFTError.commandBufferFailed("makeComputeCommandEncoder returned nil")
             }
             enc.setComputePipelineState(context.pipelines[kName]!)
-            enc.setBuffer(inBuf,  offset: 0, index: 0)
+            enc.setBuffer(inBuf, offset: 0, index: 0)
             enc.setBuffer(outBuf, offset: 0, index: 1)
             enc.dispatchThreadgroups(MTLSizeMake(batchSize, 1, 1),
                                      threadsPerThreadgroup: MTLSizeMake(kThreads, 1, 1))
@@ -184,7 +183,7 @@ public final class MetalFFT {
                 batchTemps = fourStepState
             } else {
                 let total = byteCount * batchSize
-                guard case .fourStep(_, _, _, _, let n1Buf, let n2Buf) = fourStepState else {
+                guard case let .fourStep(_, _, _, _, n1Buf, n2Buf) = fourStepState else {
                     fatalError("unreachable")
                 }
                 batchTemps = try .fourStep(
@@ -196,7 +195,7 @@ public final class MetalFFT {
                     n2Buf: n2Buf
                 )
             }
-            for bIdx in 0..<batchSize {
+            for bIdx in 0 ..< batchSize {
                 try dispatchFourStep(from: inBuf, to: outBuf,
                                      batchOffset: bIdx * byteCount,
                                      temps: batchTemps)
@@ -208,16 +207,16 @@ public final class MetalFFT {
         from inBuf: MTLBuffer, to outBuf: MTLBuffer,
         batchOffset: Int, temps: FourStepState
     ) throws {
-        guard case .fourStep(let n1, let n2, let pass1Kernel, let pass1Threads, let pass2Kernel, let pass2Threads) = descriptor.kind,
-              case .fourStep(let tempA, let tempB, let tempC, let tempD, let n1Buf, let n2Buf) = temps
+        guard case let .fourStep(n1, n2, pass1Kernel, pass1Threads, pass2Kernel, pass2Threads) = descriptor.kind,
+              case let .fourStep(tempA, tempB, tempC, tempD, n1Buf, n2Buf) = temps
         else { fatalError("unreachable") }
 
-        let transposePL  = context.pipelines["fft_transpose"]!
-        let twiddlePL    = context.pipelines["fft_twiddle_transpose"]!
-        let pass1PL      = context.pipelines[pass1Kernel]!
-        let pass2PL      = context.pipelines[pass2Kernel]!
-        let elemThreads  = min(256, size)
-        let elemTGs      = (size + elemThreads - 1) / elemThreads
+        let transposePL = context.pipelines["fft_transpose"]!
+        let twiddlePL = context.pipelines["fft_twiddle_transpose"]!
+        let pass1PL = context.pipelines[pass1Kernel]!
+        let pass2PL = context.pipelines[pass2Kernel]!
+        let elemThreads = min(256, size)
+        let elemTGs = (size + elemThreads - 1) / elemThreads
 
         guard let cb = context.queue.makeCommandBuffer() else {
             throw FFTError.commandBufferFailed("makeCommandBuffer returned nil")
@@ -226,10 +225,10 @@ public final class MetalFFT {
         // Step 0: transpose input N2×N1 → N1×N2
         let enc0 = cb.makeComputeCommandEncoder()!
         enc0.setComputePipelineState(transposePL)
-        enc0.setBuffer(inBuf,  offset: batchOffset, index: 0)
-        enc0.setBuffer(tempA,  offset: batchOffset, index: 1)
-        enc0.setBuffer(n2Buf,  offset: 0,           index: 2)
-        enc0.setBuffer(n1Buf,  offset: 0,           index: 3)
+        enc0.setBuffer(inBuf, offset: batchOffset, index: 0)
+        enc0.setBuffer(tempA, offset: batchOffset, index: 1)
+        enc0.setBuffer(n2Buf, offset: 0, index: 2)
+        enc0.setBuffer(n1Buf, offset: 0, index: 3)
         enc0.dispatchThreadgroups(MTLSizeMake(elemTGs, 1, 1),
                                   threadsPerThreadgroup: MTLSizeMake(elemThreads, 1, 1))
         enc0.endEncoding()
@@ -248,8 +247,8 @@ public final class MetalFFT {
         enc2.setComputePipelineState(twiddlePL)
         enc2.setBuffer(tempB, offset: batchOffset, index: 0)
         enc2.setBuffer(tempC, offset: batchOffset, index: 1)
-        enc2.setBuffer(n1Buf, offset: 0,           index: 2)
-        enc2.setBuffer(n2Buf, offset: 0,           index: 3)
+        enc2.setBuffer(n1Buf, offset: 0, index: 2)
+        enc2.setBuffer(n2Buf, offset: 0, index: 3)
         enc2.dispatchThreadgroups(MTLSizeMake(elemTGs, 1, 1),
                                   threadsPerThreadgroup: MTLSizeMake(elemThreads, 1, 1))
         enc2.endEncoding()
@@ -266,10 +265,10 @@ public final class MetalFFT {
         // Step 4: transpose N2×N1 → N1×N2 (canonical output order)
         let enc4 = cb.makeComputeCommandEncoder()!
         enc4.setComputePipelineState(transposePL)
-        enc4.setBuffer(tempD,  offset: batchOffset, index: 0)
+        enc4.setBuffer(tempD, offset: batchOffset, index: 0)
         enc4.setBuffer(outBuf, offset: batchOffset, index: 1)
-        enc4.setBuffer(n2Buf,  offset: 0,           index: 2)
-        enc4.setBuffer(n1Buf,  offset: 0,           index: 3)
+        enc4.setBuffer(n2Buf, offset: 0, index: 2)
+        enc4.setBuffer(n1Buf, offset: 0, index: 3)
         enc4.dispatchThreadgroups(MTLSizeMake(elemTGs, 1, 1),
                                   threadsPerThreadgroup: MTLSizeMake(elemThreads, 1, 1))
         enc4.endEncoding()

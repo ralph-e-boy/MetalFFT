@@ -10,7 +10,7 @@ let package = Package(
             path: "Sources/DNALib",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -19,7 +19,7 @@ let package = Package(
             path: "Sources/DNASpectralAnalysis",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -28,7 +28,7 @@ let package = Package(
             path: "Sources/EcoliAnalysis",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -37,7 +37,7 @@ let package = Package(
             path: "Sources/WelchCoherenceAnalysis",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -46,7 +46,7 @@ let package = Package(
             path: "Sources/SpectralVariant",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -55,7 +55,7 @@ let package = Package(
             path: "Sources/HumanAnalysis",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -64,7 +64,7 @@ let package = Package(
             path: "Sources/Period4Investigation",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -73,7 +73,7 @@ let package = Package(
             path: "Sources/CrossSpeciesAnalysis",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -82,7 +82,7 @@ let package = Package(
             path: "Sources/CrossSpeciesAnalysis2",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -91,7 +91,7 @@ let package = Package(
             path: "Sources/NatureCrossSpecies",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -100,7 +100,7 @@ let package = Package(
             path: "Sources/MultilevelAnalysis",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -109,7 +109,7 @@ let package = Package(
             path: "Sources/NullModelTest",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -118,7 +118,7 @@ let package = Package(
             path: "Sources/BiologicalValidation",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -127,7 +127,7 @@ let package = Package(
             path: "Sources/SpectralAnomaly",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -136,7 +136,7 @@ let package = Package(
             path: "Sources/InvestigateAnomalies",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -145,7 +145,7 @@ let package = Package(
             path: "Sources/PfalciparumAnomaly",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -154,7 +154,7 @@ let package = Package(
             path: "Sources/PfDeepInvestigation",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
         ),
         .executableTarget(
@@ -163,8 +163,8 @@ let package = Package(
             path: "Sources/PfGenomeWide",
             linkerSettings: [
                 .linkedFramework("Metal"),
-                .linkedFramework("Foundation"),
+                .linkedFramework("Foundation")
             ]
-        ),
+        )
     ]
 )

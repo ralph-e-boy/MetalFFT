@@ -4,8 +4,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 // =============================================================================
 
-import Metal
 import Foundation
+import Metal
 
 // ============================================================================
 // FP16 Precision Comparison for SAR Range Doppler Algorithm
@@ -24,10 +24,10 @@ import Foundation
 // ============================================================================
 
 enum PrecisionMode: String, CaseIterable {
-    case fp32     = "FP32"
+    case fp32 = "FP32"
     case fp16Pure = "FP16-pure"
     case fp16Stor = "FP16-stor"
-    case fp16Mix  = "FP16-mix"
+    case fp16Mix = "FP16-mix"
 }
 
 struct PrecisionResult {
@@ -55,8 +55,8 @@ class RDAFusedFP16Pipeline {
 
     init(params: SARParameters) throws {
         self.params = params
-        self.nRange = params.nRange
-        self.nAzimuth = params.nAzimuth
+        nRange = params.nRange
+        nAzimuth = params.nAzimuth
 
         guard let device = MTLCreateSystemDefaultDevice() else {
             fatalError("No Metal device found")
@@ -65,7 +65,7 @@ class RDAFusedFP16Pipeline {
         guard let queue = device.makeCommandQueue() else {
             fatalError("Could not create command queue")
         }
-        self.commandQueue = queue
+        commandQueue = queue
 
         let compileOptions = MTLCompileOptions()
         compileOptions.fastMathEnabled = true
@@ -89,9 +89,9 @@ class RDAFusedFP16Pipeline {
         let fp16Library = try device.makeLibrary(source: fp16Source, options: compileOptions)
 
         let modeKernelMap: [(PrecisionMode, String, String, String)] = [
-            (.fp16Pure, "fused_range_compression_fp16_pure",    "fused_azimuth_compression_fp16_pure",    "fused_multiply_ifft_fp16_pure"),
+            (.fp16Pure, "fused_range_compression_fp16_pure", "fused_azimuth_compression_fp16_pure", "fused_multiply_ifft_fp16_pure"),
             (.fp16Stor, "fused_range_compression_fp16_storage", "fused_azimuth_compression_fp16_storage", "fused_multiply_ifft_fp16_storage"),
-            (.fp16Mix,  "fused_range_compression_fp16_mixed",   "fused_azimuth_compression_fp16_mixed",   "fused_multiply_ifft_fp16_mixed"),
+            (.fp16Mix, "fused_range_compression_fp16_mixed", "fused_azimuth_compression_fp16_mixed", "fused_multiply_ifft_fp16_mixed")
         ]
 
         for (mode, rangeName, azName, mulIfftName) in modeKernelMap {
@@ -152,7 +152,7 @@ class RDAFusedFP16Pipeline {
             (cwd as NSString).appendingPathComponent("src/metal/\(name)"),
             (cwd as NSString).appendingPathComponent("src/radar/\(name)"),
             (cwd as NSString).appendingPathComponent("../metal/\(name)"),
-            (cwd as NSString).appendingPathComponent("../radar/\(name)"),
+            (cwd as NSString).appendingPathComponent("../radar/\(name)")
         ]
         for path in searchPaths {
             if FileManager.default.fileExists(atPath: path) {
@@ -250,11 +250,11 @@ class RDAFusedFP16Pipeline {
 
         let chirpFFT = cpuFFT(chirpRef)
         var matchedFilter = [SIMD2<Float>](repeating: .zero, count: Nr)
-        for i in 0..<Nr {
+        for i in 0 ..< Nr {
             matchedFilter[i] = SIMD2<Float>(chirpFFT[i].x, -chirpFFT[i].y)
         }
         let filterBuffer = device.makeBuffer(bytes: matchedFilter,
-            length: Nr * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
+                                             length: Nr * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
 
         let outputBuffer = device.makeBuffer(length: byteCount, options: .storageModeShared)!
 
@@ -313,7 +313,7 @@ class RDAFusedFP16Pipeline {
 
         var rcmcParams: [Float] = [lambda, V, R0, rangePixel, Float(Nr), Float(Na)]
         let paramsBuffer = device.makeBuffer(bytes: &rcmcParams,
-            length: rcmcParams.count * MemoryLayout<Float>.stride, options: .storageModeShared)!
+                                             length: rcmcParams.count * MemoryLayout<Float>.stride, options: .storageModeShared)!
 
         let pipeline = utilityPipelines["rcmc_sinc_interp"]!
         let cb = commandQueue.makeCommandBuffer()!
@@ -354,7 +354,7 @@ class RDAFusedFP16Pipeline {
 
         var azParams: [Float] = [lambda, V, R0, prf, Float(Nr), Float(Na), rangePixel]
         let azParamsBuffer = device.makeBuffer(bytes: &azParams,
-            length: azParams.count * MemoryLayout<Float>.stride, options: .storageModeShared)!
+                                               length: azParams.count * MemoryLayout<Float>.stride, options: .storageModeShared)!
 
         let genPipeline = utilityPipelines["generate_azimuth_matched_filter"]!
         let cb1 = commandQueue.makeCommandBuffer()!
@@ -365,7 +365,7 @@ class RDAFusedFP16Pipeline {
         let threads1 = min(256, Na)
         let groups1 = (Na * Nr + threads1 - 1) / threads1
         enc1.dispatchThreadgroups(MTLSizeMake(groups1, 1, 1),
-                                   threadsPerThreadgroup: MTLSizeMake(threads1, 1, 1))
+                                  threadsPerThreadgroup: MTLSizeMake(threads1, 1, 1))
         enc1.endEncoding()
         cb1.commit()
         cb1.waitUntilCompleted()
@@ -380,9 +380,9 @@ class RDAFusedFP16Pipeline {
         // Fused multiply + IFFT
         let fusedOut = device.makeBuffer(length: byteCount, options: .storageModeShared)!
 
-        var fusedParams: [UInt32] = [0]  // filterIsSingleRow = 0
+        var fusedParams: [UInt32] = [0] // filterIsSingleRow = 0
         let fusedParamsBuffer = device.makeBuffer(bytes: &fusedParams,
-            length: fusedParams.count * MemoryLayout<UInt32>.stride, options: .storageModeShared)!
+                                                  length: fusedParams.count * MemoryLayout<UInt32>.stride, options: .storageModeShared)!
 
         let pipeline = multiplyIfftPipelines[mode]!
         let cb2 = commandQueue.makeCommandBuffer()!
@@ -393,7 +393,7 @@ class RDAFusedFP16Pipeline {
         enc2.setBuffer(transposedFilter, offset: 0, index: 2)
         enc2.setBuffer(fusedParamsBuffer, offset: 0, index: 3)
         enc2.dispatchThreadgroups(MTLSizeMake(Nr, 1, 1),
-                                   threadsPerThreadgroup: MTLSizeMake(1024, 1, 1))
+                                  threadsPerThreadgroup: MTLSizeMake(1024, 1, 1))
         enc2.endEncoding()
         cb2.commit()
         cb2.waitUntilCompleted()
@@ -411,12 +411,12 @@ class RDAFusedFP16Pipeline {
 
     private func fftConfigForSize(_ n: Int) -> (kernelName: String, threadsPerGroup: Int) {
         switch n {
-        case 256:  return ("fft_256_stockham",  64)
-        case 512:  return ("fft_512_stockham",  128)
-        case 1024: return ("fft_1024_stockham", 256)
-        case 2048: return ("fft_2048_stockham", 512)
-        case 4096: return ("fft_4096_stockham", 1024)
-        default:   fatalError("Unsupported FFT size: \(n)")
+        case 256: ("fft_256_stockham", 64)
+        case 512: ("fft_512_stockham", 128)
+        case 1024: ("fft_1024_stockham", 256)
+        case 2048: ("fft_2048_stockham", 512)
+        case 4096: ("fft_4096_stockham", 1024)
+        default: fatalError("Unsupported FFT size: \(n)")
         }
     }
 
@@ -442,7 +442,7 @@ class RDAFusedFP16Pipeline {
 
         var params: [UInt32] = [UInt32(rows), UInt32(cols)]
         let paramsBuffer = device.makeBuffer(bytes: &params,
-            length: params.count * MemoryLayout<UInt32>.stride, options: .storageModeShared)!
+                                             length: params.count * MemoryLayout<UInt32>.stride, options: .storageModeShared)!
 
         let cb = commandQueue.makeCommandBuffer()!
         let enc = cb.makeComputeCommandEncoder()!
@@ -462,9 +462,10 @@ class RDAFusedFP16Pipeline {
     func cpuFFT(_ input: [SIMD2<Float>]) -> [SIMD2<Float>] {
         let n = input.count
         let inputBuffer = device.makeBuffer(bytes: input,
-            length: n * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
+                                            length: n * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
         let outputBuffer = device.makeBuffer(
-            length: n * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
+            length: n * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared
+        )!
 
         batchRowFFT(input: inputBuffer, output: outputBuffer, rowSize: n, numRows: 1)
 
@@ -490,16 +491,16 @@ class RDAFusedFP16Pipeline {
 
         // Header
         let header = String(format: "%-10s  %-6s  %10s  %10s  %10s  %10s  %10s",
-                           "Precision", "Target", "PSLR (dB)", "ISLR (dB)", "SNR (dB)", "Res_r (bin)", "Res_a (bin)")
+                            "Precision", "Target", "PSLR (dB)", "ISLR (dB)", "SNR (dB)", "Res_r (bin)", "Res_a (bin)")
         print(header)
         print(String(repeating: "-", count: 100))
 
         for result in results {
             for m in result.targetMetrics {
                 let line = String(format: "%-10s  T%-5d  %10.1f  %10.1f  %10.1f  %10.2f  %10.2f",
-                                 result.mode.rawValue, m.targetIndex,
-                                 m.pslrRange, m.islrRange, m.snr,
-                                 m.resolution3dBRange, m.resolution3dBAzimuth)
+                                  result.mode.rawValue, m.targetIndex,
+                                  m.pslrRange, m.islrRange, m.snr,
+                                  m.resolution3dBRange, m.resolution3dBAzimuth)
                 print(line)
             }
             print(String(repeating: "-", count: 100))
@@ -513,7 +514,7 @@ class RDAFusedFP16Pipeline {
         print()
 
         let deltaHeader = String(format: "%-10s  %-6s  %10s  %10s  %10s  %10s",
-                                "Precision", "Target", "dPSLR(dB)", "dISLR(dB)", "dSNR(dB)", "dRes_r(bin)")
+                                 "Precision", "Target", "dPSLR(dB)", "dISLR(dB)", "dSNR(dB)", "dRes_r(bin)")
         print(deltaHeader)
         print(String(repeating: "-", count: 80))
 
@@ -526,8 +527,8 @@ class RDAFusedFP16Pipeline {
                 let dRes = m.resolution3dBRange - ref.resolution3dBRange
 
                 let line = String(format: "%-10s  T%-5d  %+10.2f  %+10.2f  %+10.2f  %+10.3f",
-                                 result.mode.rawValue, m.targetIndex,
-                                 dPslr, dIslr, dSnr, dRes)
+                                  result.mode.rawValue, m.targetIndex,
+                                  dPslr, dIslr, dSnr, dRes)
                 print(line)
             }
             print(String(repeating: "-", count: 80))
@@ -544,12 +545,12 @@ class RDAFusedFP16Pipeline {
             var refSqSum: Double = 0
             var maxAbsErr: Float = 0
 
-            for i in 0..<fp32Result.focusedImage.count {
+            for i in 0 ..< fp32Result.focusedImage.count {
                 let dx = fp32Result.focusedImage[i].x - result.focusedImage[i].x
                 let dy = fp32Result.focusedImage[i].y - result.focusedImage[i].y
                 diffSqSum += Double(dx * dx + dy * dy)
                 refSqSum += Double(fp32Result.focusedImage[i].x * fp32Result.focusedImage[i].x
-                                 + fp32Result.focusedImage[i].y * fp32Result.focusedImage[i].y)
+                    + fp32Result.focusedImage[i].y * fp32Result.focusedImage[i].y)
                 let absErr = max(abs(dx), abs(dy))
                 if absErr > maxAbsErr { maxAbsErr = absErr }
             }
@@ -574,7 +575,7 @@ class RDAFusedFP16Pipeline {
         for result in results {
             let speedup = fp32Time / result.pipelineTimeSeconds
             print(String(format: "  %-12s  %10.4f  %9.2fx", result.mode.rawValue,
-                        result.pipelineTimeSeconds, speedup))
+                         result.pipelineTimeSeconds, speedup))
         }
 
         // PSLR pass/fail assessment
@@ -593,7 +594,7 @@ class RDAFusedFP16Pipeline {
             let status = allPass ? "PASS" : "FAIL"
 
             print(String(format: "  %-12s  avg PSLR: %6.1f dB  avg SNR: %5.1f dB  [%s]",
-                        result.mode.rawValue, avgPslr, avgSnr, status))
+                         result.mode.rawValue, avgPslr, avgSnr, status))
         }
 
         print()

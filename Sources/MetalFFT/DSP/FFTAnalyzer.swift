@@ -9,16 +9,24 @@ public struct AnalysisResult {
     public let fftSize: Int
 
     /// Squared magnitudes (x²+y²) for each bin — same as `vDSP_zvmags`.
-    public var magnitudes: [Float] { Spectrum.magnitudes(complex) }
+    public var magnitudes: [Float] {
+        Spectrum.magnitudes(complex)
+    }
 
     /// Magnitudes in dB (10·log₁₀ of squared magnitudes). Floor at –120 dB.
-    public var magnitudesDB: [Float] { Spectrum.toDecibels(magnitudes) }
+    public var magnitudesDB: [Float] {
+        Spectrum.toDecibels(magnitudes)
+    }
 
     /// Per-bin phase in radians (–π to π).
-    public var phase: [Float] { Spectrum.phase(complex) }
+    public var phase: [Float] {
+        Spectrum.phase(complex)
+    }
 
     /// Frequency in Hz for a given bin index.
-    public func binFrequency(_ bin: Int) -> Double { Double(bin) * sampleRate / Double(fftSize) }
+    public func binFrequency(_ bin: Int) -> Double {
+        Double(bin) * sampleRate / Double(fftSize)
+    }
 
     /// Parabolic-interpolated dominant frequency in Hz, or `nil` if the spectrum looks like noise.
     public var dominantFreq: Float? {
@@ -40,7 +48,9 @@ public struct AnalysisResult {
     }
 
     /// `true` if the spectrum matches environmental noise heuristics.
-    public var isNoise: Bool { Spectrum.isNoise(magnitudes, sampleRate: sampleRate, fftSize: fftSize) }
+    public var isNoise: Bool {
+        Spectrum.isNoise(magnitudes, sampleRate: sampleRate, fftSize: fftSize)
+    }
 
     /// RMS amplitude via Parseval's theorem: √(Σ|X[k]|²) / N.
     public var rms: Float {
@@ -72,11 +82,11 @@ public final class FFTAnalyzer {
     ) throws {
         self.size = size
         self.sampleRate = sampleRate
-        self.fft = try MetalFFT(size: size)
-        self.window = windowType.coefficients(size)
-        self.windowedBuf = [Float](repeating: 0, count: size)
-        self.complexBuf = [SIMD2<Float>](repeating: .zero, count: size)
-        self.outputBuf = [SIMD2<Float>](repeating: .zero, count: size)
+        fft = try MetalFFT(size: size)
+        window = windowType.coefficients(size)
+        windowedBuf = [Float](repeating: 0, count: size)
+        complexBuf = [SIMD2<Float>](repeating: .zero, count: size)
+        outputBuf = [SIMD2<Float>](repeating: .zero, count: size)
     }
 
     /// Analyze `samples` (must have `count == size`). Returns a lazy result struct.
@@ -85,7 +95,9 @@ public final class FFTAnalyzer {
         samples.withUnsafeBufferPointer { ptr in
             vDSP_vmul(ptr.baseAddress!, 1, window, 1, &windowedBuf, 1, vDSP_Length(size))
         }
-        for i in 0..<size { complexBuf[i] = SIMD2<Float>(windowedBuf[i], 0) }
+        for i in 0 ..< size {
+            complexBuf[i] = SIMD2<Float>(windowedBuf[i], 0)
+        }
         try complexBuf.withUnsafeBufferPointer { try fft.forward(input: $0, output: &outputBuf) }
         return AnalysisResult(complex: outputBuf, sampleRate: sampleRate, fftSize: size)
     }
@@ -96,7 +108,9 @@ public final class FFTAnalyzer {
         samples.withUnsafeBufferPointer { ptr in
             vDSP_vmul(ptr.baseAddress! + offset, 1, window, 1, &windowedBuf, 1, vDSP_Length(size))
         }
-        for i in 0..<size { complexBuf[i] = SIMD2<Float>(windowedBuf[i], 0) }
+        for i in 0 ..< size {
+            complexBuf[i] = SIMD2<Float>(windowedBuf[i], 0)
+        }
         try complexBuf.withUnsafeBufferPointer { try fft.forward(input: $0, output: &outputBuf) }
         return AnalysisResult(complex: outputBuf, sampleRate: sampleRate, fftSize: size)
     }

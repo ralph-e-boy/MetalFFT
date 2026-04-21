@@ -4,9 +4,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 // =============================================================================
 
-import Metal
 import Accelerate
 import Foundation
+import Metal
 
 // ============================================================================
 // FFT 4096 — In-place Cooley-Tukey DIF with simdgroup_matrix MMA
@@ -30,7 +30,7 @@ struct FFTHostCTMMA {
         guard let queue = device.makeCommandQueue() else {
             fatalError("Could not create command queue")
         }
-        self.commandQueue = queue
+        commandQueue = queue
 
         let execPath = CommandLine.arguments[0]
         let execDir = (execPath as NSString).deletingLastPathComponent
@@ -40,7 +40,7 @@ struct FFTHostCTMMA {
             (execDir as NSString).appendingPathComponent("../Sources/fft_4096_ct_mma.metal"),
             (execDir as NSString).appendingPathComponent("../../Sources/fft_4096_ct_mma.metal"),
             (execDir as NSString).appendingPathComponent("../../src/metal/fft_4096_ct_mma.metal"),
-            (execDir as NSString).appendingPathComponent("../../../fft_4096_ct_mma.metal"),
+            (execDir as NSString).appendingPathComponent("../../../fft_4096_ct_mma.metal")
         ]
         var foundPath: String? = nil
         for path in searchPaths {
@@ -62,44 +62,44 @@ struct FFTHostCTMMA {
         guard let function = library.makeFunction(name: "fft_4096_ct_mma") else {
             fatalError("Could not find kernel function 'fft_4096_ct_mma'")
         }
-        self.pipeline = try device.makeComputePipelineState(function: function)
+        pipeline = try device.makeComputePipelineState(function: function)
 
         // Precompute DFT_8 real and imaginary matrices (row-major 8x8)
         let sqrt2_2: Float = 0.70710678118654752
         let f8Real: [Float] = [
-             1.0,  1.0,       1.0,  1.0,       1.0,  1.0,       1.0,  1.0,
-             1.0,  sqrt2_2,   0.0, -sqrt2_2,  -1.0, -sqrt2_2,   0.0,  sqrt2_2,
-             1.0,  0.0,      -1.0,  0.0,       1.0,  0.0,      -1.0,  0.0,
-             1.0, -sqrt2_2,   0.0,  sqrt2_2,  -1.0,  sqrt2_2,   0.0, -sqrt2_2,
-             1.0, -1.0,       1.0, -1.0,       1.0, -1.0,       1.0, -1.0,
-             1.0, -sqrt2_2,   0.0,  sqrt2_2,  -1.0,  sqrt2_2,   0.0, -sqrt2_2,
-             1.0,  0.0,      -1.0,  0.0,       1.0,  0.0,      -1.0,  0.0,
-             1.0,  sqrt2_2,   0.0, -sqrt2_2,  -1.0, -sqrt2_2,   0.0,  sqrt2_2,
+            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+            1.0, sqrt2_2, 0.0, -sqrt2_2, -1.0, -sqrt2_2, 0.0, sqrt2_2,
+            1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0, 0.0,
+            1.0, -sqrt2_2, 0.0, sqrt2_2, -1.0, sqrt2_2, 0.0, -sqrt2_2,
+            1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0,
+            1.0, -sqrt2_2, 0.0, sqrt2_2, -1.0, sqrt2_2, 0.0, -sqrt2_2,
+            1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0, 0.0,
+            1.0, sqrt2_2, 0.0, -sqrt2_2, -1.0, -sqrt2_2, 0.0, sqrt2_2
         ]
         let f8Imag: [Float] = [
-             0.0,  0.0,       0.0,  0.0,       0.0,  0.0,       0.0,  0.0,
-             0.0, -sqrt2_2,  -1.0, -sqrt2_2,   0.0,  sqrt2_2,   1.0,  sqrt2_2,
-             0.0, -1.0,       0.0,  1.0,       0.0, -1.0,       0.0,  1.0,
-             0.0, -sqrt2_2,   1.0, -sqrt2_2,   0.0,  sqrt2_2,  -1.0,  sqrt2_2,
-             0.0,  0.0,       0.0,  0.0,       0.0,  0.0,       0.0,  0.0,
-             0.0,  sqrt2_2,  -1.0,  sqrt2_2,   0.0, -sqrt2_2,   1.0, -sqrt2_2,
-             0.0,  1.0,       0.0, -1.0,       0.0,  1.0,       0.0, -1.0,
-             0.0,  sqrt2_2,   1.0,  sqrt2_2,   0.0, -sqrt2_2,  -1.0, -sqrt2_2,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            0.0, -sqrt2_2, -1.0, -sqrt2_2, 0.0, sqrt2_2, 1.0, sqrt2_2,
+            0.0, -1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 1.0,
+            0.0, -sqrt2_2, 1.0, -sqrt2_2, 0.0, sqrt2_2, -1.0, sqrt2_2,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            0.0, sqrt2_2, -1.0, sqrt2_2, 0.0, -sqrt2_2, 1.0, -sqrt2_2,
+            0.0, 1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0,
+            0.0, sqrt2_2, 1.0, sqrt2_2, 0.0, -sqrt2_2, -1.0, -sqrt2_2
         ]
 
-        self.dftRealBuffer = device.makeBuffer(
+        dftRealBuffer = device.makeBuffer(
             bytes: f8Real,
             length: 64 * MemoryLayout<Float>.stride,
             options: .storageModeShared
         )!
-        self.dftImagBuffer = device.makeBuffer(
+        dftImagBuffer = device.makeBuffer(
             bytes: f8Imag,
             length: 64 * MemoryLayout<Float>.stride,
             options: .storageModeShared
         )!
 
         let f8NegImag = f8Imag.map { -$0 }
-        self.dftNegImagBuffer = device.makeBuffer(
+        dftNegImagBuffer = device.makeBuffer(
             bytes: f8NegImag,
             length: 64 * MemoryLayout<Float>.stride,
             options: .storageModeShared
@@ -110,20 +110,20 @@ struct FFTHostCTMMA {
         let strides: [Int] = [512, 64, 8]
         let groupSizes: [Int] = [4096, 512, 64]
         var twiddleTable = [SIMD2<Float>](repeating: SIMD2<Float>(1.0, 0.0), count: 3 * n)
-        for stage in 0..<3 {
+        for stage in 0 ..< 3 {
             let S = strides[stage]
             let G = groupSizes[stage]
-            for i in 0..<n {
+            for i in 0 ..< n {
                 let posInGroup = i % G
                 let r = posInGroup / S
                 let k = posInGroup % S
-                if r > 0 && k > 0 {
+                if r > 0, k > 0 {
                     let angle = -2.0 * Float.pi * Float(r * k) / Float(G)
                     twiddleTable[stage * n + i] = SIMD2<Float>(cos(angle), sin(angle))
                 }
             }
         }
-        self.twiddleBuffer = device.makeBuffer(
+        twiddleBuffer = device.makeBuffer(
             bytes: twiddleTable,
             length: 3 * n * MemoryLayout<SIMD2<Float>>.stride,
             options: .storageModeShared
@@ -191,7 +191,7 @@ struct FFTHostCTMMA {
         let threadsPerThreadgroup = MTLSizeMake(512, 1, 1)
         let threadgroups = MTLSizeMake(batchSize, 1, 1)
 
-        for _ in 0..<warmup {
+        for _ in 0 ..< warmup {
             let cb = commandQueue.makeCommandBuffer()!
             let enc = cb.makeComputeCommandEncoder()!
             enc.setComputePipelineState(pipeline)
@@ -208,7 +208,7 @@ struct FFTHostCTMMA {
         }
 
         var times: [Double] = []
-        for _ in 0..<repeats {
+        for _ in 0 ..< repeats {
             let cb = commandQueue.makeCommandBuffer()!
             let enc = cb.makeComputeCommandEncoder()!
             enc.setComputePipelineState(pipeline)
@@ -243,13 +243,13 @@ struct FFTHostCTScalar {
 
     init(device: MTLDevice, queue: MTLCommandQueue, library: MTLLibrary, dftReal: MTLBuffer, dftImag: MTLBuffer) throws {
         self.device = device
-        self.commandQueue = queue
-        self.dftRealBuffer = dftReal
-        self.dftImagBuffer = dftImag
+        commandQueue = queue
+        dftRealBuffer = dftReal
+        dftImagBuffer = dftImag
         guard let function = library.makeFunction(name: "fft_4096_ct_scalar") else {
             fatalError("Could not find kernel function 'fft_4096_ct_scalar'")
         }
-        self.pipeline = try device.makeComputePipelineState(function: function)
+        pipeline = try device.makeComputePipelineState(function: function)
     }
 
     func runFFT(input: [SIMD2<Float>], batchSize: Int = 1) -> [SIMD2<Float>] {
@@ -293,7 +293,7 @@ func vdspFFT4096(input: [SIMD2<Float>]) -> [SIMD2<Float>] {
 
     var realIn = [Float](repeating: 0, count: n)
     var imagIn = [Float](repeating: 0, count: n)
-    for i in 0..<n {
+    for i in 0 ..< n {
         realIn[i] = input[i].x
         imagIn[i] = input[i].y
     }
@@ -314,7 +314,7 @@ func vdspFFT4096(input: [SIMD2<Float>]) -> [SIMD2<Float>] {
     }
 
     var result = [SIMD2<Float>](repeating: .zero, count: n)
-    for i in 0..<n {
+    for i in 0 ..< n {
         result[i] = SIMD2<Float>(realOut[i], imagOut[i])
     }
     return result
@@ -327,7 +327,7 @@ func vdspFFT4096(input: [SIMD2<Float>]) -> [SIMD2<Float>] {
 func generateTestSignal(n: Int) -> [SIMD2<Float>] {
     var signal = [SIMD2<Float>](repeating: .zero, count: n)
     let invN = 2.0 * Float.pi / Float(n)
-    for k in 0..<n {
+    for k in 0 ..< n {
         let t = Float(k) * invN
         let real = cos(100.0 * t) + 0.5 * cos(200.0 * t) + 0.3 * sin(500.0 * t)
         signal[k] = SIMD2<Float>(real, 0.0)
@@ -337,8 +337,8 @@ func generateTestSignal(n: Int) -> [SIMD2<Float>] {
 
 func generateRandomSignal(n: Int) -> [SIMD2<Float>] {
     var signal = [SIMD2<Float>](repeating: .zero, count: n)
-    for k in 0..<n {
-        signal[k] = SIMD2<Float>(Float.random(in: -1...1), Float.random(in: -1...1))
+    for k in 0 ..< n {
+        signal[k] = SIMD2<Float>(Float.random(in: -1 ... 1), Float.random(in: -1 ... 1))
     }
     return signal
 }
@@ -357,7 +357,7 @@ func validate(metal: [SIMD2<Float>], reference: [SIMD2<Float>], label: String) -
     var l2ErrorSq: Float = 0
     var l2RefSq: Float = 0
 
-    for i in 0..<n {
+    for i in 0 ..< n {
         let diff = metal[i] - reference[i]
         let absErr = sqrt(diff.x * diff.x + diff.y * diff.y)
         let refMag = sqrt(reference[i].x * reference[i].x + reference[i].y * reference[i].y)
@@ -415,7 +415,7 @@ struct FFTCTMMAHostMain {
         let shaderSearchPaths = [
             (execDir as NSString).appendingPathComponent("fft_4096_ct_mma.metal"),
             (execDir as NSString).appendingPathComponent("../../src/metal/fft_4096_ct_mma.metal"),
-            (execDir as NSString).appendingPathComponent("../../../fft_4096_ct_mma.metal"),
+            (execDir as NSString).appendingPathComponent("../../../fft_4096_ct_mma.metal")
         ]
         var shaderPath: String? = nil
         for p in shaderSearchPaths {
@@ -424,9 +424,9 @@ struct FFTCTMMAHostMain {
         guard let foundShaderPath = shaderPath else {
             print("WARNING: Could not find shader for scalar kernel test, skipping")
             let scalarHost: FFTHostCTScalar? = nil
-            _ = scalarHost  // suppress unused warning
+            _ = scalarHost // suppress unused warning
             // skip scalar tests
-            let _ = 0 // placeholder
+            _ = 0 // placeholder
             print()
             // jump to MMA tests below
             var allPassed = true
@@ -446,15 +446,15 @@ struct FFTCTMMAHostMain {
         var impulse = [SIMD2<Float>](repeating: .zero, count: n)
         impulse[0] = SIMD2<Float>(1.0, 0.0)
         let refImpulse = vdspFFT4096(input: impulse)
-        let _ = validate(metal: scalarHost.runFFT(input: impulse), reference: refImpulse, label: "scalar-impulse")
+        _ = validate(metal: scalarHost.runFFT(input: impulse), reference: refImpulse, label: "scalar-impulse")
 
         let dc = [SIMD2<Float>](repeating: SIMD2<Float>(1.0, 0.0), count: n)
         let refDC = vdspFFT4096(input: dc)
-        let _ = validate(metal: scalarHost.runFFT(input: dc), reference: refDC, label: "scalar-dc")
+        _ = validate(metal: scalarHost.runFFT(input: dc), reference: refDC, label: "scalar-dc")
 
         let randSignal = generateRandomSignal(n: n)
         let refRand = vdspFFT4096(input: randSignal)
-        let _ = validate(metal: scalarHost.runFFT(input: randSignal), reference: refRand, label: "scalar-random")
+        _ = validate(metal: scalarHost.runFFT(input: randSignal), reference: refRand, label: "scalar-random")
 
         // Also test split-layout scalar
         print()
@@ -474,13 +474,13 @@ struct FFTCTMMAHostMain {
             enc.setBuffer(outBuf, offset: 0, index: 1)
             enc.setBuffer(host.dftRealBuffer, offset: 0, index: 2)
             enc.setBuffer(host.dftImagBuffer, offset: 0, index: 3)
-            enc.dispatchThreadgroups(MTLSizeMake(1,1,1), threadsPerThreadgroup: MTLSizeMake(512,1,1))
+            enc.dispatchThreadgroups(MTLSizeMake(1, 1, 1), threadsPerThreadgroup: MTLSizeMake(512, 1, 1))
             enc.endEncoding()
             cb.commit()
             cb.waitUntilCompleted()
             let ptr = outBuf.contents().bindMemory(to: SIMD2<Float>.self, capacity: n)
             let res = Array(UnsafeBufferPointer(start: ptr, count: n))
-            let _ = validate(metal: res, reference: refRand, label: "split-scalar-random")
+            _ = validate(metal: res, reference: refRand, label: "split-scalar-random")
         }
 
         print()
@@ -509,14 +509,14 @@ struct FFTCTMMAHostMain {
         print("-- Test 5: Batch of 16 --")
         let batchSize = 16
         var batchInput = [SIMD2<Float>](repeating: .zero, count: n * batchSize)
-        for i in 0..<(n * batchSize) {
-            batchInput[i] = SIMD2<Float>(Float.random(in: -1...1), Float.random(in: -1...1))
+        for i in 0 ..< (n * batchSize) {
+            batchInput[i] = SIMD2<Float>(Float.random(in: -1 ... 1), Float.random(in: -1 ... 1))
         }
         let metalBatch = host.runFFT(input: batchInput, batchSize: batchSize)
-        for b in 0..<batchSize {
-            let slice = Array(batchInput[b * n..<(b + 1) * n])
+        for b in 0 ..< batchSize {
+            let slice = Array(batchInput[b * n ..< (b + 1) * n])
             let ref = vdspFFT4096(input: slice)
-            let metalSlice = Array(metalBatch[b * n..<(b + 1) * n])
+            let metalSlice = Array(metalBatch[b * n ..< (b + 1) * n])
             let ok = validate(metal: metalSlice, reference: ref, label: "batch[\(b)]")
             allPassed = allPassed && ok
         }
@@ -529,7 +529,9 @@ struct FFTCTMMAHostMain {
 
         for bs in [1, 16, 64, 256] {
             var bi = [SIMD2<Float>](repeating: .zero, count: n * bs)
-            for i in 0..<bi.count { bi[i] = SIMD2<Float>(Float.random(in: -1...1), Float.random(in: -1...1)) }
+            for i in 0 ..< bi.count {
+                bi[i] = SIMD2<Float>(Float.random(in: -1 ... 1), Float.random(in: -1 ... 1))
+            }
             let us = host.timeFFT(input: bi, batchSize: bs)
             let totalFFTs = Double(bs)
             let flopsPerFFT = 5.0 * Double(n) * log2(Double(n))

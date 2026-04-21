@@ -4,8 +4,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 // =============================================================================
 
-import Metal
 import Foundation
+import Metal
 
 // ============================================================================
 // Range Doppler Algorithm (RDA) — Unfused Baseline
@@ -33,8 +33,8 @@ class RDAPipeline {
 
     init(params: SARParameters) throws {
         self.params = params
-        self.nRange = params.nRange
-        self.nAzimuth = params.nAzimuth
+        nRange = params.nRange
+        nAzimuth = params.nAzimuth
 
         guard let device = MTLCreateSystemDefaultDevice() else {
             fatalError("No Metal device found")
@@ -43,7 +43,7 @@ class RDAPipeline {
         guard let queue = device.makeCommandQueue() else {
             fatalError("Could not create command queue")
         }
-        self.commandQueue = queue
+        commandQueue = queue
 
         // Load FFT kernels from fft_multisize.metal
         let fftSource = try RDAPipeline.loadShaderSource(name: "fft_multisize.metal")
@@ -55,7 +55,7 @@ class RDAPipeline {
             "fft_256_stockham", "fft_512_stockham", "fft_1024_stockham",
             "fft_2048_stockham", "fft_4096_stockham",
             "fft_64_stockham", "fft_128_stockham",
-            "fft_twiddle_transpose", "fft_transpose",
+            "fft_twiddle_transpose", "fft_transpose"
         ]
         for name in fftKernelNames {
             if let function = fftLibrary.makeFunction(name: name) {
@@ -71,7 +71,7 @@ class RDAPipeline {
             "complex_multiply", "complex_multiply_conjugate",
             "transpose_2d", "rcmc_sinc_interp",
             "generate_azimuth_matched_filter",
-            "fftshift_columns", "magnitude_detect",
+            "fftshift_columns", "magnitude_detect"
         ]
         for name in rdaKernelNames {
             if let function = rdaLibrary.makeFunction(name: name) {
@@ -101,7 +101,7 @@ class RDAPipeline {
             (cwd as NSString).appendingPathComponent("src/metal/\(name)"),
             (cwd as NSString).appendingPathComponent("src/radar/\(name)"),
             (cwd as NSString).appendingPathComponent("../metal/\(name)"),
-            (cwd as NSString).appendingPathComponent("../radar/\(name)"),
+            (cwd as NSString).appendingPathComponent("../radar/\(name)")
         ]
         for path in searchPaths {
             if FileManager.default.fileExists(atPath: path) {
@@ -170,11 +170,11 @@ class RDAPipeline {
 
         // Create matched filter: H_r(f) = conj(FFT(chirp_ref))
         var matchedFilter = [SIMD2<Float>](repeating: .zero, count: Nr)
-        for i in 0..<Nr {
+        for i in 0 ..< Nr {
             matchedFilter[i] = SIMD2<Float>(chirpFFT[i].x, -chirpFFT[i].y)
         }
         let filterBuffer = device.makeBuffer(bytes: matchedFilter,
-            length: Nr * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
+                                             length: Nr * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
 
         // Buffers for FFT -> multiply -> IFFT
         let fftOutBuffer = device.makeBuffer(length: byteCount, options: .storageModeShared)!
@@ -186,7 +186,7 @@ class RDAPipeline {
 
         // Multiply each row by matched filter
         complexMultiply(a: fftOutBuffer, b: filterBuffer, output: mulOutBuffer,
-                       rowSize: Nr, numRows: Na, bIsSingleRow: true)
+                        rowSize: Nr, numRows: Na, bIsSingleRow: true)
 
         // Batch IFFT all range lines
         batchRowIFFT(input: mulOutBuffer, output: ifftOutBuffer, rowSize: Nr, numRows: Na)
@@ -238,7 +238,7 @@ class RDAPipeline {
         // Pack parameters into a buffer
         var rcmcParams: [Float] = [lambda, V, R0, rangePixel, Float(Nr), Float(Na)]
         let paramsBuffer = device.makeBuffer(bytes: &rcmcParams,
-            length: rcmcParams.count * MemoryLayout<Float>.stride, options: .storageModeShared)!
+                                             length: rcmcParams.count * MemoryLayout<Float>.stride, options: .storageModeShared)!
 
         let pipeline = utilityPipelines["rcmc_sinc_interp"]!
         let cb = commandQueue.makeCommandBuffer()!
@@ -281,7 +281,7 @@ class RDAPipeline {
 
         var azParams: [Float] = [lambda, V, R0, prf, Float(Nr), Float(Na), rangePixel]
         let azParamsBuffer = device.makeBuffer(bytes: &azParams,
-            length: azParams.count * MemoryLayout<Float>.stride, options: .storageModeShared)!
+                                               length: azParams.count * MemoryLayout<Float>.stride, options: .storageModeShared)!
 
         // Generate the filter on GPU
         let genPipeline = utilityPipelines["generate_azimuth_matched_filter"]!
@@ -293,7 +293,7 @@ class RDAPipeline {
         let threads1 = min(256, Na)
         let groups1 = (Na * Nr + threads1 - 1) / threads1
         enc1.dispatchThreadgroups(MTLSizeMake(groups1, 1, 1),
-                                   threadsPerThreadgroup: MTLSizeMake(threads1, 1, 1))
+                                  threadsPerThreadgroup: MTLSizeMake(threads1, 1, 1))
         enc1.endEncoding()
         cb1.commit()
         cb1.waitUntilCompleted()
@@ -301,7 +301,7 @@ class RDAPipeline {
         // Multiply data by conjugate of azimuth filter
         let outputBuffer = device.makeBuffer(length: byteCount, options: .storageModeShared)!
         complexMultiply(a: dataBuffer, b: filterBuffer, output: outputBuffer,
-                       rowSize: Nr, numRows: Na, bIsSingleRow: false)
+                        rowSize: Nr, numRows: Na, bIsSingleRow: false)
 
         return outputBuffer
     }
@@ -341,16 +341,16 @@ class RDAPipeline {
 
     private func fftConfigForSize(_ n: Int) -> FFTConfig {
         switch n {
-        case 256:  return FFTConfig(kernelName: "fft_256_stockham",  threadsPerGroup: 64)
-        case 512:  return FFTConfig(kernelName: "fft_512_stockham",  threadsPerGroup: 128)
-        case 1024: return FFTConfig(kernelName: "fft_1024_stockham", threadsPerGroup: 256)
-        case 2048: return FFTConfig(kernelName: "fft_2048_stockham", threadsPerGroup: 512)
-        case 4096: return FFTConfig(kernelName: "fft_4096_stockham", threadsPerGroup: 1024)
-        default:   fatalError("Unsupported FFT size for single-pass: \(n)")
+        case 256: FFTConfig(kernelName: "fft_256_stockham", threadsPerGroup: 64)
+        case 512: FFTConfig(kernelName: "fft_512_stockham", threadsPerGroup: 128)
+        case 1024: FFTConfig(kernelName: "fft_1024_stockham", threadsPerGroup: 256)
+        case 2048: FFTConfig(kernelName: "fft_2048_stockham", threadsPerGroup: 512)
+        case 4096: FFTConfig(kernelName: "fft_4096_stockham", threadsPerGroup: 1024)
+        default: fatalError("Unsupported FFT size for single-pass: \(n)")
         }
     }
 
-    // Batch row-wise FFT: each row of length rowSize gets an FFT
+    /// Batch row-wise FFT: each row of length rowSize gets an FFT
     func batchRowFFT(input: MTLBuffer, output: MTLBuffer, rowSize: Int, numRows: Int) {
         let config = fftConfigForSize(rowSize)
         let pipeline = fftPipelines[config.kernelName]!
@@ -368,7 +368,7 @@ class RDAPipeline {
         cb.waitUntilCompleted()
     }
 
-    // Batch row-wise IFFT: conjugate -> FFT -> conjugate -> scale by 1/N
+    /// Batch row-wise IFFT: conjugate -> FFT -> conjugate -> scale by 1/N
     func batchRowIFFT(input: MTLBuffer, output: MTLBuffer, rowSize: Int, numRows: Int) {
         let totalCount = rowSize * numRows
         let byteCount = totalCount * MemoryLayout<SIMD2<Float>>.stride
@@ -391,13 +391,13 @@ class RDAPipeline {
     // ========================================================================
 
     private func complexMultiply(a: MTLBuffer, b: MTLBuffer, output: MTLBuffer,
-                                  rowSize: Int, numRows: Int, bIsSingleRow: Bool) {
+                                 rowSize: Int, numRows: Int, bIsSingleRow: Bool) {
         let pipeline = utilityPipelines["complex_multiply"]!
         let totalCount = rowSize * numRows
 
         var params: [UInt32] = [UInt32(rowSize), UInt32(numRows), bIsSingleRow ? 1 : 0]
         let paramsBuffer = device.makeBuffer(bytes: &params,
-            length: params.count * MemoryLayout<UInt32>.stride, options: .storageModeShared)!
+                                             length: params.count * MemoryLayout<UInt32>.stride, options: .storageModeShared)!
 
         let cb = commandQueue.makeCommandBuffer()!
         let enc = cb.makeComputeCommandEncoder()!
@@ -421,7 +421,7 @@ class RDAPipeline {
 
         var params: [UInt32] = [UInt32(rows), UInt32(cols)]
         let paramsBuffer = device.makeBuffer(bytes: &params,
-            length: params.count * MemoryLayout<UInt32>.stride, options: .storageModeShared)!
+                                             length: params.count * MemoryLayout<UInt32>.stride, options: .storageModeShared)!
 
         let cb = commandQueue.makeCommandBuffer()!
         let enc = cb.makeComputeCommandEncoder()!
@@ -438,11 +438,11 @@ class RDAPipeline {
         cb.waitUntilCompleted()
     }
 
-    // CPU-side conjugate (simple utility for IFFT)
+    /// CPU-side conjugate (simple utility for IFFT)
     private func conjugateBuffer(input: MTLBuffer, output: MTLBuffer, count: Int) {
         let src = input.contents().bindMemory(to: SIMD2<Float>.self, capacity: count)
         let dst = output.contents().bindMemory(to: SIMD2<Float>.self, capacity: count)
-        for i in 0..<count {
+        for i in 0 ..< count {
             dst[i] = SIMD2<Float>(src[i].x, -src[i].y)
         }
     }
@@ -450,19 +450,20 @@ class RDAPipeline {
     private func conjugateAndScale(input: MTLBuffer, output: MTLBuffer, count: Int, scale: Float) {
         let src = input.contents().bindMemory(to: SIMD2<Float>.self, capacity: count)
         let dst = output.contents().bindMemory(to: SIMD2<Float>.self, capacity: count)
-        for i in 0..<count {
+        for i in 0 ..< count {
             dst[i] = SIMD2<Float>(src[i].x * scale, -src[i].y * scale)
         }
     }
 
-    // CPU FFT for small reference signals (chirp reference)
+    /// CPU FFT for small reference signals (chirp reference)
     func cpuFFT(_ input: [SIMD2<Float>]) -> [SIMD2<Float>] {
         let n = input.count
         // Use GPU FFT via Metal kernel
         let inputBuffer = device.makeBuffer(bytes: input,
-            length: n * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
+                                            length: n * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
         let outputBuffer = device.makeBuffer(
-            length: n * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared)!
+            length: n * MemoryLayout<SIMD2<Float>>.stride, options: .storageModeShared
+        )!
 
         batchRowFFT(input: inputBuffer, output: outputBuffer, rowSize: n, numRows: 1)
 

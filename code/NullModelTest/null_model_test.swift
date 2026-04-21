@@ -1,5 +1,5 @@
-import Foundation
 import DNALib
+import Foundation
 
 // ============================================================================
 // Null Model Test: Real Genome vs Dinucleotide-Preserving Shuffle
@@ -32,7 +32,7 @@ func findGenomesDir() -> String {
         "\(execDir)/../../../data/genomes",
         "\(execDir)/../../../../data/genomes",
         "\(execDir)/../../../../../data/genomes",
-        "\(FileManager.default.currentDirectoryPath)/data/genomes",
+        "\(FileManager.default.currentDirectoryPath)/data/genomes"
     ]
     for dir in searchDirs {
         let path = (dir as NSString).standardizingPath
@@ -52,7 +52,7 @@ func main() throws {
 
     let analyzer = try DNASpectralAnalyzer()
     let genomesDir = findGenomesDir()
-    let numShuffles = 5  // 5 shuffles per genome (enough for z-scores)
+    let numShuffles = 5 // 5 shuffles per genome (enough for z-scores)
 
     // Representative genomes spanning the diversity
     let genomes: [GenomeSpec] = [
@@ -64,7 +64,7 @@ func main() throws {
         GenomeSpec(name: "S. cerevisiae", path: "\(genomesDir)/s_cerevisiae.fasta", domain: "Eukarya"),
         GenomeSpec(name: "Drosophila chr2L", path: "\(genomesDir)/drosophila_chr2L.fna", domain: "Eukarya"),
         GenomeSpec(name: "C. elegans chrI", path: "\(genomesDir)/c_elegans_chrI.fasta", domain: "Eukarya"),
-        GenomeSpec(name: "P. falciparum chr13", path: "\(genomesDir)/p_falciparum_chr13.fasta", domain: "Eukarya"),
+        GenomeSpec(name: "P. falciparum chr13", path: "\(genomesDir)/p_falciparum_chr13.fasta", domain: "Eukarya")
     ]
 
     let pairNames = ["AT", "AG", "AC", "TG", "TC", "GC"]
@@ -102,8 +102,8 @@ func main() throws {
 
         // Quick dinucleotide frequency report
         var dinucCounts = [Int](repeating: 0, count: 16)
-        for i in 0..<(realDNA.count - 1) {
-            dinucCounts[Int(realDNA[i]) * 4 + Int(realDNA[i+1])] += 1
+        for i in 0 ..< (realDNA.count - 1) {
+            dinucCounts[Int(realDNA[i]) * 4 + Int(realDNA[i + 1])] += 1
         }
         let totalDinuc = dinucCounts.reduce(0, +)
         let nucNames = ["A", "T", "G", "C"]
@@ -125,7 +125,7 @@ func main() throws {
             count: numShuffles
         )
 
-        for s in 0..<numShuffles {
+        for s in 0 ..< numShuffles {
             print("  Shuffle \(s + 1)/\(numShuffles)...")
             var rng = SeededRNG(seed: UInt64(42 + s * 137))
             let shuffledDNA = dinucleotideShuffle(dna: realDNA, rng: &rng)
@@ -137,7 +137,7 @@ func main() throws {
             }
 
             let shuffResult = analyzer.computeMultilevelSpectral(dna: shuffledDNA)
-            for b in 0..<bands.count {
+            for b in 0 ..< bands.count {
                 shuffleCoherences[s][b] = shuffResult.avgBandCoherence[b]
             }
         }
@@ -149,7 +149,9 @@ func main() throws {
         allResults.append("")
 
         var headerLine = "  Band         "
-        for name in pairNames { headerLine += "  \(name.padding(toLength: 8, withPad: " ", startingAt: 0))" }
+        for name in pairNames {
+            headerLine += "  \(name.padding(toLength: 8, withPad: " ", startingAt: 0))"
+        }
         print(headerLine)
         print("  " + String(repeating: "-", count: 66))
 
@@ -160,26 +162,27 @@ func main() throws {
             var line = "  \(band.shortName.padding(toLength: 13, withPad: " ", startingAt: 0))"
             var mdLine = "| \(band.shortName) |"
 
-            for p in 0..<6 {
+            for p in 0 ..< 6 {
                 let realVal = realResult.avgBandCoherence[bIdx][p]
 
                 // Mean and std of shuffle values
                 var shuffVals = [Float]()
-                for s in 0..<numShuffles {
+                for s in 0 ..< numShuffles {
                     shuffVals.append(shuffleCoherences[s][bIdx][p])
                 }
                 let mean = shuffVals.reduce(0, +) / Float(numShuffles)
                 var variance: Float = 0
-                for v in shuffVals { variance += (v - mean) * (v - mean) }
+                for v in shuffVals {
+                    variance += (v - mean) * (v - mean)
+                }
                 let std = sqrt(variance / Float(max(numShuffles - 1, 1)))
 
                 let z = std > 1e-6 ? (realVal - mean) / std : 0
 
-                let marker: String
-                if abs(z) > 5 { marker = "***" }
-                else if abs(z) > 3 { marker = "** " }
-                else if abs(z) > 2 { marker = "*  " }
-                else { marker = "   " }
+                let marker = if abs(z) > 5 { "***" }
+                else if abs(z) > 3 { "** " }
+                else if abs(z) > 2 { "*  " }
+                else { "   " }
 
                 line += String(format: "  %+6.1f%@", z, marker as NSString)
                 mdLine += " \(String(format: "%+.1f", z)) |"
@@ -195,13 +198,17 @@ func main() throws {
         print("\n  Key findings:")
         var foundSignificant = false
         for (bIdx, band) in bands.enumerated() {
-            for p in 0..<6 {
+            for p in 0 ..< 6 {
                 let realVal = realResult.avgBandCoherence[bIdx][p]
                 var shuffVals = [Float]()
-                for s in 0..<numShuffles { shuffVals.append(shuffleCoherences[s][bIdx][p]) }
+                for s in 0 ..< numShuffles {
+                    shuffVals.append(shuffleCoherences[s][bIdx][p])
+                }
                 let mean = shuffVals.reduce(0, +) / Float(numShuffles)
                 var variance: Float = 0
-                for v in shuffVals { variance += (v - mean) * (v - mean) }
+                for v in shuffVals {
+                    variance += (v - mean) * (v - mean)
+                }
                 let std = sqrt(variance / Float(max(numShuffles - 1, 1)))
                 let z = std > 1e-6 ? (realVal - mean) / std : 0
 
