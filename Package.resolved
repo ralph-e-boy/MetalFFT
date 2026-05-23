@@ -17,6 +17,15 @@
         "revision" : "b45d1f2ed151d057b54504d653e0da5552844e34",
         "version" : "1.0.0"
       }
+    },
+    {
+      "identity" : "swift-llmref",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ralph-e-boy/swift-llmref",
+      "state" : {
+        "revision" : "89118a6133c93d7a53dd4159363275b8c059fee8",
+        "version" : "0.0.1"
+      }
     }
   ],
   "version" : 2
