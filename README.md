@@ -1,6 +1,18 @@
 # MetalFFT
 
-GPU-accelerated FFT for Apple Silicon — a Swift Package built on Metal compute shaders, with a layered DSP API for spectrum analysis, pitch detection, convolution, time-frequency analysis, and beat detection.
+A Swift Package built on Metal compute shaders, with a layered DSP API for spectrum analysis, pitch detection, convolution, time-frequency analysis, and beat detection.
+
+# Credits:
+This is a fork of <a href= "https://github.com/aminems>AmineMs">AmineMs</a>'s excellent demonstrations of using metal gpu shaders for FFT on Apple silicon,
+which is here: <https://github.com/aminems/AppleSiliconFFT>, packaged up into a swift package. 
+
+#### Original research and Metal kernel implementations by Mohamed Amine Bergach, author of these papers: 
+- *Beating vDSP: A 138 GFLOPS Radix-8 Stockham FFT on Apple Silicon via Two-Tier Register-Threadgroup Memory Decomposition*, 2026
+<https://arxiv.org/abs/2603.27569v1>
+- *From 8 Seconds to 370 ms: Kernel-Fused SAR Imaging on Apple Silicon via Single-Dispatch FFT Pipelines*, 2026
+<https://arxiv.org/abs/2604.03585v1>
+- *Quaternion Spectral Fingerprinting of DNA: GPU-Accelerated Multi-Channel Fourier Analysis for Alignment-Free Genomics*, 2026
+<https://www.biorxiv.org/content/10.64898/2026.04.03.716441v1>
 
 ## Requirements
 
@@ -252,14 +264,8 @@ Underlying Metal kernels were benchmarked on Apple M1 at N=4096, batch=256:
 | Radix-4 Stockham | 113.6 | +6% |
 | Apple vDSP (baseline) | 107.0 | — |
 
-## Credits
-
-Based on original research and Metal kernel implementations by **Mohamed Amine Bergach** (mbergach@illumina.com):
-
-- *Beating vDSP: A 138 GFLOPS Radix-8 Stockham FFT on Apple Silicon via Two-Tier Register-Threadgroup Memory Decomposition*, 2026
-- *From 8 Seconds to 370 ms: Kernel-Fused SAR Imaging on Apple Silicon via Single-Dispatch FFT Pipelines*, 2026
-- *Quaternion Spectral Fingerprinting of DNA: GPU-Accelerated Multi-Channel Fourier Analysis for Alignment-Free Genomics*, 2026
 
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
+ls.
