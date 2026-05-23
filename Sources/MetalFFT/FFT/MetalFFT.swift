@@ -25,6 +25,10 @@ public final class MetalFFT {
     // MARK: - Init
 
     public init(size: Int) throws {
+        // Real-input paths reinterpret inputBuf as alternating (real, imag) Float pairs,
+        // so SIMD2<Float> must be tightly packed at stride = 2 * sizeof(Float).
+        assert(MemoryLayout<SIMD2<Float>>.stride == 2 * MemoryLayout<Float>.stride,
+               "SIMD2<Float> layout assumption broken — real-input FFT path is unsafe")
         let ctx = try MetalContext.shared()
         let desc = try FFTDescriptor(size: size)
         context = ctx
@@ -94,6 +98,52 @@ public final class MetalFFT {
         }
         if output.count != size { output = [SIMD2<Float>](repeating: .zero, count: size) }
         inputBuf.contents().copyMemory(from: input.baseAddress!, byteCount: byteCount)
+        try dispatchSingle(from: inputBuf, to: outputBuf)
+        output.withUnsafeMutableBufferPointer { buf in
+            buf.baseAddress!.update(
+                from: outputBuf.contents().bindMemory(to: SIMD2<Float>.self, capacity: size),
+                count: size
+            )
+        }
+    }
+
+    // MARK: - Real-input Forward FFT
+
+    /// Forward FFT of a real-valued signal. The samples are packed as complex with
+    /// imag = 0 internally; the returned spectrum is the full N-point complex output
+    /// (Hermitian-symmetric for real input — bins above N/2 mirror bins below).
+    ///
+    /// Allocates the output array; use `forward(real:output:)` for the zero-allocation variant.
+    public func forward(real input: [Float]) throws -> [SIMD2<Float>] {
+        guard input.count == size else {
+            throw FFTError.invalidInputSize(expected: size, got: input.count)
+        }
+        var out = [SIMD2<Float>](repeating: .zero, count: size)
+        try input.withUnsafeBufferPointer { try forward(real: $0, output: &out) }
+        return out
+    }
+
+    /// Zero-copy real-input forward FFT. Writes both real and imag slots of the
+    /// internal input buffer on every call (imag := 0), so interleaving with the
+    /// complex `forward(input:output:)` path is safe.
+    public func forward(
+        real input: UnsafeBufferPointer<Float>,
+        output: inout [SIMD2<Float>]
+    ) throws {
+        guard input.count == size else {
+            throw FFTError.invalidInputSize(expected: size, got: input.count)
+        }
+        if output.count != size { output = [SIMD2<Float>](repeating: .zero, count: size) }
+
+        // Pack real → (real, 0) directly into inputBuf. Setting the full SIMD2<Float>
+        // each iteration guarantees the imag slot is zeroed even if a prior complex
+        // call left stale values there.
+        let dst = inputBuf.contents().bindMemory(to: SIMD2<Float>.self, capacity: size)
+        let src = input.baseAddress!
+        for i in 0 ..< size {
+            dst[i] = SIMD2<Float>(src[i], 0)
+        }
+
         try dispatchSingle(from: inputBuf, to: outputBuf)
         output.withUnsafeMutableBufferPointer { buf in
             buf.baseAddress!.update(

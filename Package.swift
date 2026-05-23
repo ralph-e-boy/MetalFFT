@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "MetalFFT",
-    platforms: [.macOS(.v13)],
+    platforms: [.macOS(.v13), .iOS(.v15)],
     products: [
         .library(name: "MetalFFT", targets: ["MetalFFT"]),
         .executable(name: "DNASpectralDemo", targets: ["DNASpectralDemo"])
