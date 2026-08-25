@@ -46,11 +46,11 @@ public extension PSD {
     /// on the GPU, and averages over windows.
     ///
     /// - Parameters:
-    ///   - channels: Time-domain signals, all the same length. Maximum 16 channels.
+    ///   - signals: Time-domain signals, all the same length. Maximum 16 channels.
     ///   - fftSize: Analysis window length. Must be a supported `MetalFFT` size.
     ///   - hopSize: Window advance per frame.
     ///   - sampleRate: Sample rate in Hz (used only for bin-frequency labelling).
-    ///   - window: Spectral window applied before each FFT.
+    ///   - windowType: Spectral window applied before each FFT.
     /// - Returns: Averaged power, cross-spectra, and coherence per bin.
     static func crossSpectral(
         channels signals: [[Float]],
