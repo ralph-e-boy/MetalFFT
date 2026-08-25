@@ -22,6 +22,14 @@ public final class MetalFFT {
     private let outputBuf: MTLBuffer
     private let fourStepState: FourStepState
 
+    // Scratch for the batch path, grown on demand and kept. It starts aliased
+    // to the single-transform buffers, so an instance that never batches costs
+    // nothing extra, and one that batches every call allocates once.
+    private var batchCapacity: Int
+    private var batchIn: MTLBuffer
+    private var batchOut: MTLBuffer
+    private var batchState: FourStepState
+
     // MARK: - Init
 
     public init(size: Int) throws {
@@ -52,6 +60,31 @@ public final class MetalFFT {
         } else {
             fourStepState = .singlePass
         }
+
+        batchCapacity = 1
+        batchIn = inputBuf
+        batchOut = outputBuf
+        batchState = fourStepState
+    }
+
+    /// Grows the batch scratch to hold `count` transforms, keeping whatever was
+    /// already large enough. Called before every batch dispatch.
+    private func reserveBatch(_ count: Int) throws {
+        guard count > batchCapacity else { return }
+        let total = byteCount * count
+        batchIn = try makeBuffer(context.device, length: total)
+        batchOut = try makeBuffer(context.device, length: total)
+        if case let .fourStep(_, _, _, _, n1Buf, n2Buf) = fourStepState {
+            batchState = try .fourStep(
+                tempA: makeBuffer(context.device, length: total),
+                tempB: makeBuffer(context.device, length: total),
+                tempC: makeBuffer(context.device, length: total),
+                tempD: makeBuffer(context.device, length: total),
+                n1Buf: n1Buf,
+                n2Buf: n2Buf
+            )
+        }
+        batchCapacity = count
     }
 
     // MARK: - Inverse FFT
@@ -162,23 +195,48 @@ public final class MetalFFT {
                 throw FFTError.batchInputSize(expected: size, got: el.count, batchIndex: i)
             }
         }
-        let batchSize = input.count
-        let totalBytes = byteCount * batchSize
-        let flatIn = try makeBuffer(context.device, length: totalBytes)
-        let flatOut = try makeBuffer(context.device, length: totalBytes)
-
+        var flat = [SIMD2<Float>](repeating: .zero, count: size * input.count)
         for (i, el) in input.enumerated() {
-            el.withUnsafeBytes { src in
-                (flatIn.contents() + i * byteCount).copyMemory(from: src.baseAddress!, byteCount: byteCount)
-            }
+            flat.replaceSubrange(i * size ..< (i + 1) * size, with: el)
         }
+        var out = [SIMD2<Float>](repeating: .zero, count: size * input.count)
+        try flat.withUnsafeBufferPointer {
+            try forward(batch: $0, count: input.count, output: &out)
+        }
+        return (0 ..< input.count).map { Array(out[$0 * size ..< ($0 + 1) * size]) }
+    }
 
-        try dispatchBatch(from: flatIn, to: flatOut, batchSize: batchSize)
+    /// Zero-copy batch FFT. `input` holds `count` transforms of `size` elements
+    /// laid end to end, and `output` is filled the same way, resized if needed.
+    ///
+    /// This is the shape to use when the transforms are already contiguous —
+    /// the frames of an STFT, the channels of a multichannel capture. One
+    /// dispatch covers the whole batch at single-pass sizes, which is the
+    /// difference between paying the command-buffer round trip once and paying
+    /// it `count` times. The scratch buffers are kept and reused, so a caller
+    /// that batches the same count repeatedly allocates on the first call only.
+    public func forward(
+        batch input: UnsafeBufferPointer<SIMD2<Float>>,
+        count: Int,
+        output: inout [SIMD2<Float>]
+    ) throws {
+        guard count > 0 else { return }
+        let total = size * count
+        guard input.count == total else {
+            throw FFTError.invalidInputSize(expected: total, got: input.count)
+        }
+        // Grown, never shrunk: a caller whose last chunk is short keeps the
+        // buffer the full chunks needed rather than reallocating on the next one.
+        if output.count < total { output = [SIMD2<Float>](repeating: .zero, count: total) }
 
-        return (0 ..< batchSize).map { i in
-            let ptr = (flatOut.contents() + i * byteCount)
-                .bindMemory(to: SIMD2<Float>.self, capacity: size)
-            return Array(UnsafeBufferPointer(start: ptr, count: size))
+        try reserveBatch(count)
+        batchIn.contents().copyMemory(from: input.baseAddress!, byteCount: byteCount * count)
+        try dispatchBatch(from: batchIn, to: batchOut, batchSize: count)
+        output.withUnsafeMutableBufferPointer { buf in
+            buf.baseAddress!.update(
+                from: batchOut.contents().bindMemory(to: SIMD2<Float>.self, capacity: total),
+                count: total
+            )
         }
     }
 
@@ -228,27 +286,13 @@ public final class MetalFFT {
             try commitAndWait(cb)
 
         case .fourStep:
-            let batchTemps: FourStepState
-            if batchSize == 1 {
-                batchTemps = fourStepState
-            } else {
-                let total = byteCount * batchSize
-                guard case let .fourStep(_, _, _, _, n1Buf, n2Buf) = fourStepState else {
-                    fatalError("unreachable")
-                }
-                batchTemps = try .fourStep(
-                    tempA: makeBuffer(context.device, length: total),
-                    tempB: makeBuffer(context.device, length: total),
-                    tempC: makeBuffer(context.device, length: total),
-                    tempD: makeBuffer(context.device, length: total),
-                    n1Buf: n1Buf,
-                    n2Buf: n2Buf
-                )
-            }
+            // Four-step still costs one command buffer per element: its five
+            // passes write through shared temporaries, so the elements cannot
+            // share a buffer without serialising on them anyway.
             for bIdx in 0 ..< batchSize {
                 try dispatchFourStep(from: inBuf, to: outBuf,
                                      batchOffset: bIdx * byteCount,
-                                     temps: batchTemps)
+                                     temps: batchState)
             }
         }
     }
